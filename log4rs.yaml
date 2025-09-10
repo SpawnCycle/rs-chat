@@ -1,0 +1,12 @@
+appenders:
+  stdout:
+    kind: console
+  requests:
+    kind: file
+    path: "log/requests.log"
+    encoder:
+      pattern: "{d} - {m}{n}"
+root:
+  level: info
+  appenders:
+    - requests
