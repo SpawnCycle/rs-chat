@@ -1,34 +1,3 @@
-[package]
-name = "better_eszichat"
-version = "0.1.0"
-edition = "2024"
-authors = ["Krickij Lászlo <krickijlaszlo@gmail.com>"]
-description = """
-Better version of eszichat originally made by Dávid Hegedüs
-"""
-
-[dependencies]
-crossterm = "0.29.0"
-futures = "0.3.31"
-log = "0.4.28"
-log4rs = "1.4.0"
-names = "0.14.0"
-ratatui = "0.29.0"
-rocket = "0.5.1"
-rocket_ws = "0.1.1"
-serde = "1.0.219"
-serde_json = "1.0.143"
-thiserror = "2.0.16"
-tokio = "1.47.1"
-tokio-tungstenite = "0.27.0"
-tui-textarea = "0.7.0"
-tungstenite = "0.27.0"
-uuid = { version = "1.18.1", features = ["v4", "serde"] }
-
-[[bin]]
-name = "eszichat-client"
-path = "./src/bin/client.rs"
-
-[[bin]]
-name = "eszichat-server"
-path = "./src/bin/server.rs"
+[workspace]
+resolver = "3"
+members = ["eszi_client", "eszi_lib", "eszi_server"]

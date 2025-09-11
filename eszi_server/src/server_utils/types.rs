@@ -1,9 +1,7 @@
 use tokio::sync::broadcast;
 
-use better_eszichat::messages::types::{User, WsMessage};
+use eszi_lib::messages::types::{User, WsMessage};
 
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 pub type BroadCastT = WsMessage;
 pub type MsgBroadcastSender = broadcast::Sender<BroadCastT>;

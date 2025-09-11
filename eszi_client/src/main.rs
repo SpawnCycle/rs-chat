@@ -2,22 +2,19 @@ mod client_utils;
 
 use std::{io, time::Duration};
 
-use ratatui::{
-    crossterm::event,
-    widgets::{List, ListItem},
-};
+use ratatui::crossterm::event;
 
 use client_utils::app::App;
 use tokio::sync::mpsc;
 use uuid::{Uuid, uuid};
 
-use crate::client_utils::ws_handler::{WsAction, WsHandler};
+use client_utils::ws_handler::{WsAction, WsHandler};
 
 pub const TEST_UUID: Uuid = uuid!("00000000-0000-0000-0000-ffff00000001");
 
 #[tokio::main]
 async fn main() -> Result<(), io::Error> {
-    log4rs::init_file("log4rs.yaml", Default::default()).unwrap();
+    // log4rs::init_file("log4rs.yaml", Default::default()).unwrap();
 
     log::info!("Starting app");
 

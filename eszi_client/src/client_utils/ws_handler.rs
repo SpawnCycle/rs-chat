@@ -1,16 +1,11 @@
-use std::collections::HashMap;
-
-use better_eszichat::messages::types::{Message, Sync, User, WsMessage};
-use futures::SinkExt;
-use rocket::futures::StreamExt;
+use eszi_lib::messages::types::{Message, User, WsMessage};
+use futures::StreamExt;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 use tungstenite::client::IntoClientRequest;
-
-use crate::TEST_UUID;
 
 pub enum WsAction {
     UserAdd(User),

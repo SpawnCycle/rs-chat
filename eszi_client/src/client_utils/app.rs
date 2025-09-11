@@ -1,10 +1,6 @@
 use std::collections::HashMap;
 
-use better_eszichat::messages::types::{Message, User};
-use serde_json::to_string;
-
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use eszi_lib::messages::types::{Message, User};
 
 use ratatui::{
     Frame,
@@ -84,7 +80,10 @@ impl<'a> App<'a> {
             .iter()
             .map(|m| {
                 if let Some(name) = self.users.get(m.get_author()) {
-                    Row::new(vec![name.to_string(), m.get_content().to_string()])
+                    Row::new(vec![
+                        Cell::new(name.to_string()),
+                        Cell::new(m.get_content().to_string()),
+                    ])
                 } else {
                     return Row::new(vec![self.users.get(&TEST_UUID).unwrap(), m.get_content()]);
                 }

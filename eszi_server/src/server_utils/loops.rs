@@ -1,5 +1,5 @@
-use better_eszichat::messages::types::Message as ChatMessage;
-use better_eszichat::messages::types::WsMessage;
+use eszi_lib::messages::types::Message as ChatMessage;
+use eszi_lib::messages::types::WsMessage;
 use rocket::futures::{SinkExt, StreamExt};
 use rocket_ws::{
     Message,
