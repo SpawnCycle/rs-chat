@@ -6,43 +6,68 @@ use tokio::sync::Mutex;
 
 pub type Sync<T> = Arc<Mutex<T>>;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
     id: Uuid,
     name: String,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
     from: Uuid,
     content: String,
 }
 
-/// collection of all the types that may fly between parts of both the server and the client
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
-pub enum WsMessage {
+pub enum ServerMessage {
     NewMessage(Message),
-    GetAllUsers(Vec<User>),
-    UserLeft(User),
-    UserJoined(User),
+    AllUsers(Vec<User>),
     UserNameChange(User),
-    GetUserName(Uuid),
+    UserJoined(User),
+    UserLeft(User),
+    UserData(User),
+    SelfData(User),
+    UnsupportedMessage(String),
     Arbitrary(String),
-    UnsupportedMessage,
+    InvalidUser(Uuid),
 }
 
-impl WsMessage {
-    pub fn is_user(&self, id: Uuid) -> Option<bool> {
-        match self {
-            WsMessage::NewMessage(msg) => Some(*msg.get_author() == id),
-            WsMessage::UserLeft(user) => Some(*user.get_id() == id),
-            WsMessage::UserJoined(user) => Some(*user.get_id() == id),
-            WsMessage::UserNameChange(user) => Some(*user.get_id() == id),
-            _ => None,
-        }
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(tag = "type", content = "data", rename_all = "snake_case")]
+pub enum ClientMessage {
+    ChangeUserName(String),
+    SendMessage(String),
+    GetUserData(Uuid),
+    GetSelf,
+}
+
+impl ServerMessage {
+    pub fn as_json(&self) -> String {
+        serde_json::to_string(self).unwrap()
     }
 
+    pub fn as_wsmsg(&self) -> rocket_ws::Message {
+        rocket_ws::Message::Text(self.as_json())
+    }
+
+    pub fn is_user(&self, id: Uuid) -> bool {
+        match self {
+            ServerMessage::NewMessage(message) => *message.get_author() == id,
+            ServerMessage::AllUsers(_) => false,
+            ServerMessage::UserNameChange(user) => *user.get_id() == id,
+            ServerMessage::UserJoined(user) => *user.get_id() == id,
+            ServerMessage::UserLeft(user) => *user.get_id() == id,
+            ServerMessage::UserData(user) => *user.get_id() == id,
+            ServerMessage::SelfData(user) => *user.get_id() == id,
+            ServerMessage::UnsupportedMessage(_) => false,
+            ServerMessage::Arbitrary(_) => false,
+            ServerMessage::InvalidUser(uuid) => *uuid == id,
+        }
+    }
+}
+
+impl ClientMessage {
     pub fn as_json(&self) -> String {
         serde_json::to_string(self).unwrap()
     }
@@ -63,6 +88,10 @@ impl User {
 
     pub fn get_name(&self) -> &str {
         &self.name
+    }
+
+    pub fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 }
 

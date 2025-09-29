@@ -5,26 +5,29 @@ use std::{io, time::Duration};
 use ratatui::crossterm::event;
 
 use client_utils::app::App;
-use tokio::sync::mpsc;
+use std::sync::mpsc::sync_channel;
+use tokio::sync::mpsc::channel;
 use uuid::{Uuid, uuid};
 
-use client_utils::ws_handler::{WsAction, WsHandler};
+use client_utils::ws_handler::{WsAction, WsEvent, WsHandler};
+
+use crate::client_utils::consts::TICK_DURATION;
 
 pub const TEST_UUID: Uuid = uuid!("00000000-0000-0000-0000-ffff00000001");
 
 #[tokio::main]
 async fn main() -> Result<(), io::Error> {
     // log4rs::init_file("log4rs.yaml", Default::default()).unwrap();
-
     log::info!("Starting app");
 
+    let (e_tx, mut e_rx) = channel::<WsEvent>(64);
+    let (a_tx, a_rx) = sync_channel::<WsAction>(64);
+
     let mut terminal = ratatui::init();
-    let mut app = App::new();
+    let mut app = App::new(a_tx);
 
-    let (tx, mut rx) = mpsc::channel::<WsAction>(64);
-
-    tokio::spawn(async move {
-        let mut handler = WsHandler::new(tx).await;
+    let ws = tokio::spawn(async move {
+        let mut handler = WsHandler::new(e_tx, a_rx).await;
         while !handler.step().await {}
         log::info!("Websocket handler Out");
     });
@@ -35,30 +38,30 @@ async fn main() -> Result<(), io::Error> {
                 app.draw(f);
             })
             .expect("Could not draw frame");
-        if event::poll(Duration::from_millis(25))? {
+        if event::poll(TICK_DURATION)? {
             app.handle_event(event::read().expect("Could not read event"))
                 .await;
         }
-        while let Ok(action) = rx.try_recv() {
+        while let Ok(action) = e_rx.try_recv() {
             log::info!("Action received");
             match action {
-                WsAction::UserAdd(user) => {
+                WsEvent::UserAdd(user) => {
                     log::info!("Action: Add User");
                     app.add_user(user);
                 }
-                WsAction::UserRemove(uuid) => {
+                WsEvent::UserRemove(uuid) => {
                     log::info!("Action: Remove User");
                     app.remove_user(uuid);
                 }
-                WsAction::UserChange(user) => {
+                WsEvent::UserChange(user) => {
                     log::info!("Action: Change User");
                     app.change_user_name(user);
                 }
-                WsAction::Message(message) => {
+                WsEvent::Message(message) => {
                     log::info!("Action: Add Message");
                     app.add_message(message);
                 }
-                WsAction::Quit => {
+                WsEvent::Quit => {
                     log::info!("Action: Quit");
                     app.quit()
                 }
@@ -69,6 +72,8 @@ async fn main() -> Result<(), io::Error> {
             }
         }
     }
+
+    let _ = tokio::join!(ws);
 
     ratatui::restore();
 

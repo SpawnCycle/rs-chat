@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::mpsc::SyncSender};
 
 use eszi_lib::messages::types::{Message, User};
 
@@ -11,13 +11,14 @@ use ratatui::{
 use tui_textarea::{Input, Key, TextArea};
 use uuid::Uuid;
 
-use crate::TEST_UUID;
+use crate::{TEST_UUID, client_utils::ws_handler::WsAction};
 
 pub struct App<'a> {
-    should_quit: bool,
     pub(crate) messages: Vec<Message>,
     users: HashMap<Uuid, String>,
+    tx: SyncSender<WsAction>,
     input: TextArea<'a>,
+    should_quit: bool,
     layout: Layout,
     my_uuid: Uuid,
 }
@@ -31,7 +32,7 @@ fn text_area_template() -> TextArea<'static> {
 }
 
 impl<'a> App<'a> {
-    pub fn new() -> Self {
+    pub fn new(tx: SyncSender<WsAction>) -> Self {
         let my_uuid = Uuid::new_v4();
         let mut users = HashMap::new();
         users.insert(TEST_UUID, "Test 123".to_string());
@@ -42,6 +43,7 @@ impl<'a> App<'a> {
             input: text_area_template(),
             layout: Layout::default().constraints([Constraint::Min(1), Constraint::Length(3)]),
             my_uuid,
+            tx,
         }
     }
 
@@ -57,7 +59,7 @@ impl<'a> App<'a> {
                 key: Key::Enter, ..
             } => {
                 let text = self.input.lines()[0].clone();
-                self.messages.push(Message::new(self.my_uuid, text));
+                let _ = self.tx.send(WsAction::Message(text.to_owned()));
                 self.input = text_area_template();
             }
             Input { key: Key::Esc, .. }
@@ -66,7 +68,7 @@ impl<'a> App<'a> {
                 ctrl: true,
                 ..
             } => {
-                self.should_quit = true;
+                self.quit();
             }
             input => {
                 self.input.input(input);
@@ -123,5 +125,6 @@ impl<'a> App<'a> {
 
     pub fn quit(&mut self) {
         self.should_quit = true;
+        let _ = self.tx.send(WsAction::Quit);
     }
 }
