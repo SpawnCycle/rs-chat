@@ -1,12 +1,13 @@
-mod server_utils;
+mod loops;
+mod routes;
+mod types;
 
-use server_utils::routes;
 use tokio::sync::broadcast;
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::server_utils::types::{BroadCastT, Room};
+use types::{BroadCastT, Room};
 
 #[rocket::launch]
 async fn rocket() -> _ {

@@ -1,17 +1,19 @@
-mod client_utils;
+mod app;
+mod consts;
+mod ws_handler;
 
-use std::{io, time::Duration};
+use std::io;
 
 use ratatui::crossterm::event;
 
-use client_utils::app::App;
+use app::App;
 use std::sync::mpsc::sync_channel;
 use tokio::sync::mpsc::channel;
 use uuid::{Uuid, uuid};
 
-use client_utils::ws_handler::{WsAction, WsEvent, WsHandler};
+use ws_handler::{WsAction, WsEvent, WsHandler};
 
-use crate::client_utils::consts::TICK_DURATION;
+use consts::TICK_DURATION;
 
 pub const TEST_UUID: Uuid = uuid!("00000000-0000-0000-0000-ffff00000001");
 

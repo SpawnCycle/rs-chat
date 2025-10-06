@@ -1,6 +1,6 @@
 use tokio::sync::broadcast;
 
-use eszi_lib::messages::types::{ServerMessage, User};
+use eszi_lib::types::{ServerMessage, User};
 use uuid::Uuid;
 
 pub type BroadCastT = ServerMessage;

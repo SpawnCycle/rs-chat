@@ -1,15 +1,15 @@
-use eszi_lib::messages::types::ClientMessage;
-use eszi_lib::messages::types::Message as ChatMessage;
-use eszi_lib::messages::types::ServerMessage;
-use eszi_lib::messages::types::Sync;
+use eszi_lib::types::ClientMessage;
+use eszi_lib::types::Message as ChatMessage;
+use eszi_lib::types::ServerMessage;
+use eszi_lib::types::Sync;
 use rocket::futures::{SinkExt, StreamExt};
 use rocket_ws::{Message, result, stream::DuplexStream};
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
 use uuid::Uuid;
 
-use crate::server_utils::types::Room;
-use crate::server_utils::types::{MsgBroadcastReceiver, MsgBroadcastSender};
+use crate::types::Room;
+use crate::types::{MsgBroadcastReceiver, MsgBroadcastSender};
 
 type WsRes = Result<bool, result::Error>;
 

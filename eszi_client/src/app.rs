@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::mpsc::SyncSender};
 
-use eszi_lib::messages::types::{Message, User};
+use eszi_lib::types::{Message, User};
 
 use ratatui::{
     Frame,
@@ -11,7 +11,7 @@ use ratatui::{
 use tui_textarea::{Input, Key, TextArea};
 use uuid::Uuid;
 
-use crate::{TEST_UUID, client_utils::ws_handler::WsAction};
+use crate::{TEST_UUID, ws_handler::WsAction};
 
 pub struct App<'a> {
     pub(crate) messages: Vec<Message>,
@@ -20,7 +20,7 @@ pub struct App<'a> {
     input: TextArea<'a>,
     should_quit: bool,
     layout: Layout,
-    my_uuid: Uuid,
+    self_id: Uuid,
 }
 
 fn text_area_template() -> TextArea<'static> {
@@ -33,7 +33,7 @@ fn text_area_template() -> TextArea<'static> {
 
 impl<'a> App<'a> {
     pub fn new(tx: SyncSender<WsAction>) -> Self {
-        let my_uuid = Uuid::new_v4();
+        let self_id = Uuid::new_v4();
         let mut users = HashMap::new();
         users.insert(TEST_UUID, "Test 123".to_string());
         Self {
@@ -42,7 +42,7 @@ impl<'a> App<'a> {
             users: users,
             input: text_area_template(),
             layout: Layout::default().constraints([Constraint::Min(1), Constraint::Length(3)]),
-            my_uuid,
+            self_id,
             tx,
         }
     }

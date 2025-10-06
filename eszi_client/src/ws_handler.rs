@@ -1,4 +1,4 @@
-use eszi_lib::messages::types::{ClientMessage, Message, ServerMessage, User};
+use eszi_lib::types::{ClientMessage, Message, ServerMessage, User};
 use futures::{SinkExt, StreamExt};
 use std::sync::mpsc::{Receiver, TryRecvError};
 use tokio::net::TcpStream;
@@ -8,7 +8,7 @@ use uuid::Uuid;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 use tungstenite::client::IntoClientRequest;
 
-use crate::client_utils::consts::TICK_DURATION;
+use crate::consts::TICK_DURATION;
 
 #[derive(Debug)]
 pub enum WsEvent {
