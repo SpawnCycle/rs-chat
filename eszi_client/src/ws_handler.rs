@@ -12,9 +12,11 @@ use crate::consts::TICK_DURATION;
 
 #[derive(Debug)]
 pub enum WsEvent {
+    SelfInfo(User),
     UserAdd(User),
-    UserRemove(Uuid),
+    UserInfo(User),
     UserChange(User),
+    UserRemove(Uuid),
     Message(Message),
     Quit,
 }
@@ -23,6 +25,8 @@ pub enum WsEvent {
 pub enum WsAction {
     Message(String),
     ChangeName(String),
+    RequestUser(Uuid),
+    RequestSelf,
     Quit,
 }
 
@@ -50,11 +54,8 @@ impl WsHandler {
         if self.handle_actions().await {
             return true;
         }
-        let tout = tokio::time::timeout(TICK_DURATION, self.handle_stream());
-        match tout.await {
-            Ok(res) => res,
-            Err(_) => false,
-        }
+        let tout = tokio::time::timeout(TICK_DURATION / 2, self.handle_stream());
+        tout.await.unwrap_or_default()
     }
 
     async fn handle_stream(&mut self) -> bool {
@@ -66,9 +67,9 @@ impl WsHandler {
         let msg = msg.unwrap();
         match msg {
             Ok(res) => match res {
-                tungstenite::Message::Text(txt) => self.handle_message(&txt.to_string()).await,
+                tungstenite::Message::Text(txt) => self.handle_message(txt.as_ref()).await,
                 tungstenite::Message::Close(_) => {
-                    let _ = self.tx.send(WsEvent::Quit);
+                    let _ = self.tx.send(WsEvent::Quit).await;
                     true
                 }
                 _ => {
@@ -87,7 +88,7 @@ impl WsHandler {
                 WsAction::Message(msg) => {
                     let _ = self
                         .stream
-                        .send(tungstenite::protocol::Message::Text(
+                        .send(tungstenite::Message::Text(
                             ClientMessage::SendMessage(msg).as_json().into(),
                         ))
                         .await;
@@ -97,18 +98,38 @@ impl WsHandler {
                     let _ = self.stream.close(Default::default()).await;
                     return true;
                 }
-                WsAction::ChangeName(_) => todo!(),
+                WsAction::ChangeName(name) => {
+                    let _ = self
+                        .stream
+                        .send(tungstenite::Message::Text(
+                            ClientMessage::ChangeUserName(name).as_json().into(),
+                        ))
+                        .await;
+                }
+                WsAction::RequestUser(uuid) => {
+                    let _ = self
+                        .stream
+                        .send(tungstenite::Message::Text(
+                            ClientMessage::GetUserData(uuid).as_json().into(),
+                        ))
+                        .await;
+                }
+                WsAction::RequestSelf => {
+                    let _ = self
+                        .stream
+                        .send(tungstenite::Message::Text(
+                            ClientMessage::GetSelf.as_json().into(),
+                        ))
+                        .await;
+                }
             }
             recv_res = self.rx.try_recv();
         }
-        match recv_res.unwrap_err() {
-            TryRecvError::Disconnected => {
-                let _ = self.tx.send(WsEvent::Quit);
-                return true;
-            }
-            _ => {}
+        if recv_res.unwrap_err() == TryRecvError::Disconnected {
+            let _ = self.tx.send(WsEvent::Quit).await;
+            return true;
         }
-        return false;
+        false
     }
 
     async fn handle_message(&mut self, txt: &str) -> bool {
@@ -123,19 +144,30 @@ impl WsHandler {
                     false
                 }
                 ServerMessage::UserLeft(user) => {
-                    let _ = self.tx.send(WsEvent::UserRemove(*user.get_id()));
+                    let _ = self.tx.send(WsEvent::UserRemove(*user.get_id())).await;
                     false
                 }
                 ServerMessage::UserJoined(user) => {
-                    let _ = self.tx.send(WsEvent::UserAdd(user));
+                    let _ = self.tx.send(WsEvent::UserAdd(user)).await;
                     false
                 }
                 ServerMessage::UserNameChange(user) => {
-                    let _ = self.tx.send(WsEvent::UserChange(user));
+                    let _ = self.tx.send(WsEvent::UserChange(user)).await;
                     false
                 }
-                _ => {
-                    log::error!("Server returned data it isn't supposed to");
+                ServerMessage::SelfData(user) => {
+                    let _ = self.tx.send(WsEvent::SelfInfo(user)).await;
+                    false
+                }
+                ServerMessage::UserData(user) => {
+                    let _ = self.tx.send(WsEvent::UserInfo(user)).await;
+                    false
+                }
+                ServerMessage::AllUsers(_)
+                | ServerMessage::UnsupportedMessage(_)
+                | ServerMessage::Arbitrary(_)
+                | ServerMessage::InvalidUser(_) => {
+                    log::error!("Server sending unimplemented data");
                     true
                 }
             }
@@ -148,22 +180,22 @@ impl WsHandler {
     async fn handle_ws_error(&mut self, err: tungstenite::Error) -> bool {
         match err {
             tungstenite::Error::ConnectionClosed => {
-                let _ = self.tx.send(WsEvent::Quit);
+                let _ = self.tx.send(WsEvent::Quit).await;
                 true
             }
             tungstenite::Error::AlreadyClosed => {
                 log::warn!("Trying to work with closed websocket");
-                let _ = self.tx.send(WsEvent::Quit);
+                let _ = self.tx.send(WsEvent::Quit).await;
                 true
             }
             tungstenite::Error::Io(err) => {
                 log::error!("An IO error happened: {err}");
-                let _ = self.tx.send(WsEvent::Quit);
+                let _ = self.tx.send(WsEvent::Quit).await;
                 true
             }
             _ => {
                 log::error!("Websocket error");
-                let _ = self.tx.send(WsEvent::Quit);
+                let _ = self.tx.send(WsEvent::Quit).await;
                 true
             }
         }

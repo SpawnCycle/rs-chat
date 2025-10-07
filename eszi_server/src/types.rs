@@ -21,12 +21,7 @@ impl Room {
     }
 
     pub fn get_user(&self, id: Uuid) -> Option<&User> {
-        for i in self.users.iter() {
-            if *i.get_id() == id {
-                return Some(&i);
-            }
-        }
-        None
+        self.users.iter().find(|&i| *i.get_id() == id).map(|v| v as _)
     }
 
     pub fn remove_user(&mut self, id: Uuid) {

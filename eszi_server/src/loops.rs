@@ -26,7 +26,7 @@ pub async fn ws_step(
                 Err(err) => {
                     stream_handle_err(tx, room, stream, &id).await?;
 
-                    return Err(err);
+                    Err(err)
                 }
                 Ok(msg) => {
                     match msg {
@@ -37,7 +37,7 @@ pub async fn ws_step(
                             }
                             Ok(true)
                         },
-                        _ => todo!()
+                        _ => Ok(true)
                     }
                 }
             }
@@ -59,14 +59,14 @@ async fn text_branch(
     id: &Uuid,
     txt: &str,
 ) -> WsRes {
-    if let Ok(msg) = serde_json::from_str::<ClientMessage>(&txt) {
+    if let Ok(msg) = serde_json::from_str::<ClientMessage>(txt) {
         match msg {
             ClientMessage::SendMessage(message) => {
                 let _ = tx.send(ServerMessage::NewMessage(ChatMessage::new(*id, message)));
             }
             ClientMessage::ChangeUserName(name) => {
                 let mut room = room.lock().await;
-                if room.has_user(id.clone()) {
+                if room.has_user(*id) {
                     let user = room.users.iter_mut().find(|u| *u.get_id() == *id).unwrap();
                     user.set_name(name);
                     let _ = tx.send(ServerMessage::UserNameChange(user.clone()));
