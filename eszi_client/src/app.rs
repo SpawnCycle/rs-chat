@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::mpsc::SyncSender};
+use std::sync::mpsc::SyncSender;
 
 use eszi_lib::types::{Message, User};
 
@@ -16,12 +16,13 @@ use crate::ws_handler::{WsAction, WsEvent};
 
 pub struct App<'a> {
     messages: Vec<Message>,
-    users: HashMap<Uuid, String>,
+    users: Vec<User>,
     tx: SyncSender<WsAction>,
-    input: TextArea<'a>,
-    should_quit: bool,
+    message_field: TextArea<'a>,
     layout: Layout,
-    self_user: Option<User>,
+    self_id: Option<Uuid>,
+    should_quit: bool,
+    username_field: Option<TextArea<'a>>,
 }
 
 fn text_area<'a>() -> TextArea<'a> {
@@ -32,26 +33,41 @@ fn text_area<'a>() -> TextArea<'a> {
     input
 }
 
+fn top_block<'a>() -> Block<'a> {
+    Block::new().borders(Borders::BOTTOM)
+}
+
 impl<'a> App<'a> {
     pub fn new(tx: SyncSender<WsAction>) -> Self {
-        let users = HashMap::new();
+        let users = Vec::new();
         Self {
+            tx,
+            users,
             should_quit: false,
             messages: vec![],
-            users,
-            input: text_area(),
+            message_field: text_area(),
             layout: Layout::default().constraints([
                 Constraint::Length(2),
                 Constraint::Min(1),
                 Constraint::Length(3),
             ]),
-            self_user: None,
-            tx,
+            self_id: None,
+            username_field: None,
         }
     }
 
     pub fn handle_event(&mut self, e: Event) {
         match e.into() {
+            Input {
+                key: Key::Char('n'),
+                ctrl: true,
+                alt: false,
+                ..
+            } => {
+                let mut text_area = text_area();
+                text_area.set_block(top_block());
+                self.username_field = Some(text_area);
+            }
             Input {
                 key: Key::Char('m'),
                 ctrl: true,
@@ -61,9 +77,19 @@ impl<'a> App<'a> {
             | Input {
                 key: Key::Enter, ..
             } => {
-                let text = self.input.lines()[0].clone();
-                let _ = self.tx.send(WsAction::Message(text.to_owned()));
-                self.input = text_area();
+                if let Some(text_area) = self.username_field.take() {
+                    let text = text_area.lines()[0].clone();
+                    if text.trim().chars().count() > 0 {
+                        let _ = self.tx.send(WsAction::ChangeName(text.to_owned()));
+                        let _ = self.tx.send(WsAction::RequestSelf);
+                    }
+                } else {
+                    let text = self.message_field.lines()[0].clone();
+                    if text.trim().chars().count() > 0 {
+                        let _ = self.tx.send(WsAction::Message(text.to_owned()));
+                        self.message_field = text_area();
+                    }
+                }
             }
             Input { key: Key::Esc, .. }
             | Input {
@@ -74,7 +100,11 @@ impl<'a> App<'a> {
                 self.quit();
             }
             input => {
-                self.input.input(input);
+                if let Some(text_area) = &mut self.username_field {
+                    text_area.input(input);
+                } else {
+                    self.message_field.input(input);
+                }
             }
         };
     }
@@ -83,16 +113,16 @@ impl<'a> App<'a> {
         let chunks = self.layout.split(f.area());
         let top_bar = Paragraph::new(
             self.get_self()
-                .map(|usr| usr.get_name().to_owned())
+                .map(|u| u.get_name().to_owned())
                 .unwrap_or("Loading...".to_owned()),
         )
         .block(Block::new().borders(Borders::BOTTOM));
         let rows = self
             .messages()
             .map(|m| {
-                if let Some(name) = self.users.get(m.get_author()) {
+                if let Some(user) = self.users.iter().find(|usr| usr.get_id() == m.get_author()) {
                     Row::new(vec![
-                        Cell::new(name.to_string()),
+                        Cell::new(user.get_name().to_string()),
                         Cell::new(m.get_content()),
                     ])
                 } else {
@@ -106,9 +136,13 @@ impl<'a> App<'a> {
 
         let table = Table::new(rows, &[Constraint::Max(20), Constraint::Fill(1)]);
 
-        f.render_widget(&top_bar, chunks[0]);
+        if let Some(text_area) = &self.username_field {
+            f.render_widget(text_area, chunks[0]);
+        } else {
+            f.render_widget(&top_bar, chunks[0]);
+        }
         f.render_widget(&table, chunks[1]);
-        f.render_widget(&self.input, chunks[2]);
+        f.render_widget(&self.message_field, chunks[2]);
     }
 
     pub fn handle_action(&mut self, action: &WsEvent) {
@@ -145,64 +179,67 @@ impl<'a> App<'a> {
     }
 
     pub fn send_sync_requests(&mut self) {
-        if self.self_user.is_none() {
+        if self.get_self().is_none() {
             let _ = self.tx.send(WsAction::RequestSelf);
         }
         for msg in self.messages.iter() {
             let id = *msg.get_author();
-            if let None = self.users.get(&id)
-                && Some(&id) != self.self_user.as_ref().map(|usr| usr.get_id())
+            if let None = self.users.iter().find(|usr| usr.get_id() == &id)
+                && Some(&id) != self.self_id.as_ref()
             {
                 let _ = self.tx.send(WsAction::RequestUser(id));
             }
         }
     }
 
-    pub fn get_self(&self) -> Option<User> {
-        if let Some(id) = self.self_user.as_ref().map(|usr| usr.get_id()) {
-            self.users
-                .get(id)
-                .map(|name| User::new(*id, name.to_owned()))
-        } else {
-            None
-        }
+    pub fn get_self(&self) -> Option<&User> {
+        self.self_id.map(|id| self.get_user(&id)).flatten()
     }
 
     pub fn messages(&self) -> impl Iterator<Item = &Message> {
         self.messages.iter()
     }
 
-    pub fn add_user(&mut self, usr: &User) -> bool {
-        if self.users.contains_key(usr.get_id()) {
+    pub fn add_user(&mut self, user: &User) -> bool {
+        if self.users.iter().any(|usr| usr == user) {
             true
         } else {
-            self.set_user(usr);
+            self.set_user(user);
             false
         }
     }
 
     pub fn set_user(&mut self, usr: &User) {
-        self.users
-            .entry(*usr.get_id())
-            .and_modify(|v| *v = usr.get_name().to_owned())
-            .or_insert(usr.get_name().to_owned());
+        if self.users.contains(usr) {
+            self.users.iter_mut().for_each(|u| {
+                if u.get_id() == usr.get_id() {
+                    u.clone_from(usr);
+                }
+            });
+        } else {
+            self.users.push(usr.clone());
+        }
+    }
+
+    pub fn get_user(&self, id: &Uuid) -> Option<&User> {
+        self.users.iter().find(|u| u.get_id() == id)
     }
 
     pub fn remove_user(&mut self, id: &Uuid) {
-        self.users.remove(id);
+        self.users.retain(|usr| usr.get_id() != id);
     }
 
     pub fn set_self(&mut self, usr: &User) {
-        self.self_user = Some(usr.clone());
+        self.self_id = Some(usr.get_id().clone());
         self.set_user(usr);
     }
 
     pub fn change_user_name(&mut self, usr: &User) {
-        let new_name = usr.get_name().to_string();
-        self.users
-            .entry(*usr.get_id())
-            .and_modify(|v| *v = new_name.to_owned())
-            .or_insert(new_name.to_owned());
+        self.users.iter_mut().for_each(|u| {
+            if u.get_id() == usr.get_id() {
+                u.clone_from(usr);
+            }
+        });
     }
 
     pub fn add_message(&mut self, msg: &Message) {

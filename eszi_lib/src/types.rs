@@ -6,7 +6,7 @@ use tokio::sync::Mutex;
 
 pub type Sync<T> = Arc<Mutex<T>>;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct User {
     id: Uuid,
     name: String,

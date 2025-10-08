@@ -26,9 +26,10 @@ async fn main() -> Result<(), io::Error> {
     let mut app = App::new(a_tx);
 
     let ws = tokio::spawn(async move {
+        log::info!("Websocket handler started");
         let mut handler = WsHandler::new(e_tx, a_rx).await;
         while !handler.step().await {}
-        log::info!("Websocket handler Out");
+        log::info!("Websocket handler ended");
     });
 
     while !app.should_quit() {
