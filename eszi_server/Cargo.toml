@@ -7,6 +7,10 @@ description = """
 Server for eszichat
 """
 
+[profile.release]
+opt-level = 3
+codegen-units = 1
+
 [dependencies]
 eszi_lib = { path = "../eszi_lib" }
 

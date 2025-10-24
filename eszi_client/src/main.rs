@@ -1,6 +1,8 @@
 mod app;
 mod consts;
+mod helpers;
 mod logger;
+mod room_event;
 mod ws_handler;
 
 use std::io;

@@ -1,23 +1,15 @@
+use eszi_lib::types::Sync;
 use eszi_lib::types::{ServerMessage, User};
 
 use rocket::{Build, Rocket, State, get, routes};
 use uuid::Uuid;
 
-use super::types::Room;
-use eszi_lib::types::Sync;
-
 use crate::loops::ws_step;
-#[cfg(debug_assertions)]
 use crate::types::MsgBroadcastSender;
+use crate::types::Room;
 
 pub fn bind(r: Rocket<Build>) -> Rocket<Build> {
-    r.mount("/ws", routes![ws_root, notify])
-}
-
-#[cfg(debug_assertions)]
-#[get("/notify")]
-fn notify(bc: &State<MsgBroadcastSender>) {
-    let _ = bc.send(ServerMessage::Arbitrary("Halooooooo".into()));
+    r.mount("/ws", routes![ws_root])
 }
 
 #[get("/")]

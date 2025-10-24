@@ -1,4 +1,4 @@
-use std::sync::mpsc::SyncSender;
+use std::{ops::Deref, sync::mpsc::SyncSender};
 
 use eszi_lib::types::{Message, User};
 
@@ -7,22 +7,27 @@ use ratatui::{
     crossterm::event::Event,
     layout::{Constraint, Layout},
     style::Stylize,
+    text::Span,
     widgets::{Block, Borders, Cell, Paragraph, Row, Table},
 };
 use tui_textarea::{Input, Key, TextArea};
 use uuid::Uuid;
 
-use crate::ws_handler::{WsAction, WsEvent};
+use crate::{
+    helpers::AsSpan,
+    room_event::RoomEvent,
+    ws_handler::{WsAction, WsEvent},
+};
 
 pub struct App<'a> {
-    messages: Vec<Message>,
+    username_field: Option<TextArea<'a>>,
+    message_field: TextArea<'a>,
+    room_events: Vec<RoomEvent>,
+    should_quit: bool,
+    self_id: Option<Uuid>,
+    layout: Layout,
     users: Vec<User>,
     tx: SyncSender<WsAction>,
-    message_field: TextArea<'a>,
-    layout: Layout,
-    self_id: Option<Uuid>,
-    should_quit: bool,
-    username_field: Option<TextArea<'a>>,
 }
 
 fn text_area<'a>() -> TextArea<'a> {
@@ -44,7 +49,7 @@ impl<'a> App<'a> {
             tx,
             users,
             should_quit: false,
-            messages: vec![],
+            room_events: vec![],
             message_field: text_area(),
             layout: Layout::default().constraints([
                 Constraint::Length(2),
@@ -64,9 +69,16 @@ impl<'a> App<'a> {
                 alt: false,
                 ..
             } => {
-                let mut text_area = text_area();
-                text_area.set_block(top_block());
-                self.username_field = Some(text_area);
+                if let None = self.username_field {
+                    let mut text_area = text_area();
+                    text_area.set_block(top_block());
+                    if let Some(usr) = self.get_self() {
+                        text_area.insert_str(usr.get_name());
+                    }
+                    self.username_field = Some(text_area);
+                } else {
+                    self.username_field = None;
+                }
             }
             Input {
                 key: Key::Char('m'),
@@ -91,9 +103,8 @@ impl<'a> App<'a> {
                     }
                 }
             }
-            Input { key: Key::Esc, .. }
-            | Input {
-                key: Key::Char('c'),
+            Input {
+                key: Key::Char('q'),
                 ctrl: true,
                 ..
             } => {
@@ -118,20 +129,8 @@ impl<'a> App<'a> {
         )
         .block(Block::new().borders(Borders::BOTTOM));
         let rows = self
-            .messages()
-            .map(|m| {
-                if let Some(user) = self.users.iter().find(|usr| usr.get_id() == m.get_author()) {
-                    Row::new(vec![
-                        Cell::new(user.get_name().to_string()),
-                        Cell::new(m.get_content()),
-                    ])
-                } else {
-                    Row::new(vec![
-                        Cell::new("Loading...").dim(),
-                        Cell::new(m.get_content()),
-                    ])
-                }
-            })
+            .room_events()
+            .map(|m| m.as_row(self.all_users()))
             .collect::<Vec<Row>>();
 
         let table = Table::new(rows, &[Constraint::Max(20), Constraint::Fill(1)]);
@@ -182,7 +181,10 @@ impl<'a> App<'a> {
         if self.get_self().is_none() {
             let _ = self.tx.send(WsAction::RequestSelf);
         }
-        for msg in self.messages.iter() {
+        for msg in self.room_events.iter().filter_map(|e| match e {
+            RoomEvent::Message(message) => Some(message),
+            _ => None,
+        }) {
             let id = *msg.get_author();
             if let None = self.users.iter().find(|usr| usr.get_id() == &id)
                 && Some(&id) != self.self_id.as_ref()
@@ -193,17 +195,19 @@ impl<'a> App<'a> {
     }
 
     pub fn get_self(&self) -> Option<&User> {
-        self.self_id.map(|id| self.get_user(&id)).flatten()
+        self.self_id.and_then(|id| self.get_user(&id))
     }
 
-    pub fn messages(&self) -> impl Iterator<Item = &Message> {
-        self.messages.iter()
+    pub fn room_events(&self) -> impl Iterator<Item = &RoomEvent> {
+        self.room_events.iter()
     }
 
     pub fn add_user(&mut self, user: &User) -> bool {
         if self.users.iter().any(|usr| usr == user) {
             true
         } else {
+            self.room_events
+                .push(RoomEvent::UserJoined(user.get_id().clone()));
             self.set_user(user);
             false
         }
@@ -221,20 +225,35 @@ impl<'a> App<'a> {
         }
     }
 
+    pub fn all_users(&self) -> &Vec<User> {
+        &self.users
+    }
+
     pub fn get_user(&self, id: &Uuid) -> Option<&User> {
         self.users.iter().find(|u| u.get_id() == id)
     }
 
     pub fn remove_user(&mut self, id: &Uuid) {
-        self.users.retain(|usr| usr.get_id() != id);
+        // do not remove the user to keep all the references alive
+        // self.users.retain(|usr| usr.get_id() != id);
+        self.room_events.push(RoomEvent::UserLeft(id.clone()));
     }
 
     pub fn set_self(&mut self, usr: &User) {
-        self.self_id = Some(usr.get_id().clone());
+        self.self_id = Some(*usr.get_id());
         self.set_user(usr);
     }
 
     pub fn change_user_name(&mut self, usr: &User) {
+        let id = usr.get_id();
+        let name = usr.get_name();
+        self.room_events.push(RoomEvent::UserNameChange {
+            from: self
+                .get_user(id)
+                .map(|u| u.get_name().to_owned())
+                .unwrap_or(id.to_string()),
+            to: name.to_owned(),
+        });
         self.users.iter_mut().for_each(|u| {
             if u.get_id() == usr.get_id() {
                 u.clone_from(usr);
@@ -243,7 +262,7 @@ impl<'a> App<'a> {
     }
 
     pub fn add_message(&mut self, msg: &Message) {
-        self.messages.push(msg.clone());
+        self.room_events.push(msg.clone().into());
     }
 
     pub fn should_quit(&self) -> bool {
