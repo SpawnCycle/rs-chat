@@ -12,7 +12,7 @@ pub struct User {
     name: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct Message {
     from: Uuid,
     content: String,

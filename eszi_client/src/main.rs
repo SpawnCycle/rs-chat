@@ -41,11 +41,11 @@ async fn main() -> Result<(), io::Error> {
             })
             .expect("Could not draw frame");
         if event::poll(TICK_DURATION)? {
-            app.handle_event(event::read().expect("Could not read event"));
+            app.handle_input(event::read().expect("Could not read event"));
         }
         app.send_sync_requests();
         while let Ok(action) = e_rx.try_recv() {
-            app.handle_action(&action);
+            app.handle_event(&action);
         }
     }
 

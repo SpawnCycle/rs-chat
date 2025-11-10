@@ -1,4 +1,4 @@
-use std::{ops::Deref, sync::mpsc::SyncSender};
+use std::{process::exit, sync::mpsc::SyncSender};
 
 use eszi_lib::types::{Message, User};
 
@@ -6,15 +6,12 @@ use ratatui::{
     Frame,
     crossterm::event::Event,
     layout::{Constraint, Layout},
-    style::Stylize,
-    text::Span,
-    widgets::{Block, Borders, Cell, Paragraph, Row, Table},
+    widgets::{Block, Borders, Paragraph, Row, Table},
 };
 use tui_textarea::{Input, Key, TextArea};
 use uuid::Uuid;
 
 use crate::{
-    helpers::AsSpan,
     room_event::RoomEvent,
     ws_handler::{WsAction, WsEvent},
 };
@@ -61,7 +58,7 @@ impl<'a> App<'a> {
         }
     }
 
-    pub fn handle_event(&mut self, e: Event) {
+    pub fn handle_input(&mut self, e: Event) {
         match e.into() {
             Input {
                 key: Key::Char('n'),
@@ -69,7 +66,7 @@ impl<'a> App<'a> {
                 alt: false,
                 ..
             } => {
-                if let None = self.username_field {
+                if self.username_field.is_none() {
                     let mut text_area = text_area();
                     text_area.set_block(top_block());
                     if let Some(usr) = self.get_self() {
@@ -92,13 +89,13 @@ impl<'a> App<'a> {
                 if let Some(text_area) = self.username_field.take() {
                     let text = text_area.lines()[0].clone();
                     if text.trim().chars().count() > 0 {
-                        let _ = self.tx.send(WsAction::ChangeName(text.to_owned()));
-                        let _ = self.tx.send(WsAction::RequestSelf);
+                        self.send_action(WsAction::ChangeName(text.to_owned()));
+                        self.send_action(WsAction::RequestSelf);
                     }
                 } else {
                     let text = self.message_field.lines()[0].clone();
                     if text.trim().chars().count() > 0 {
-                        let _ = self.tx.send(WsAction::Message(text.to_owned()));
+                        self.send_action(WsAction::Message(text.to_owned()));
                         self.message_field = text_area();
                     }
                 }
@@ -144,7 +141,12 @@ impl<'a> App<'a> {
         f.render_widget(&self.message_field, chunks[2]);
     }
 
-    pub fn handle_action(&mut self, action: &WsEvent) {
+    // TODO: Handle the errors gracefully
+    pub fn send_action(&mut self, action: WsAction) {
+        let _ = self.tx.send(action);
+    }
+
+    pub fn handle_event(&mut self, action: &WsEvent) {
         match action {
             WsEvent::UserAdd(user) => {
                 log::info!("Action: Add User");
@@ -179,19 +181,28 @@ impl<'a> App<'a> {
 
     pub fn send_sync_requests(&mut self) {
         if self.get_self().is_none() {
-            let _ = self.tx.send(WsAction::RequestSelf);
+            self.send_action(WsAction::RequestSelf);
         }
-        for msg in self.room_events.iter().filter_map(|e| match e {
-            RoomEvent::Message(message) => Some(message),
-            _ => None,
-        }) {
-            let id = *msg.get_author();
-            if let None = self.users.iter().find(|usr| usr.get_id() == &id)
-                && Some(&id) != self.self_id.as_ref()
-            {
-                let _ = self.tx.send(WsAction::RequestUser(id));
-            }
-        }
+
+        self.room_events
+            .iter()
+            .filter_map(|e| match e {
+                RoomEvent::Message(message) => Some(message),
+                _ => None,
+            })
+            .cloned()
+            // as far as I'm aware the only way of having self both in
+            // the filter and the foreach
+            .collect::<Vec<Message>>()
+            .iter()
+            .for_each(|msg| {
+                let id = *msg.get_author();
+                if self.users.iter().find(|usr| usr.get_id() == &id).is_none()
+                    && Some(&id) != self.self_id.as_ref()
+                {
+                    self.send_action(WsAction::RequestUser(id));
+                }
+            });
     }
 
     pub fn get_self(&self) -> Option<&User> {
@@ -206,8 +217,7 @@ impl<'a> App<'a> {
         if self.users.iter().any(|usr| usr == user) {
             true
         } else {
-            self.room_events
-                .push(RoomEvent::UserJoined(user.get_id().clone()));
+            self.room_events.push(RoomEvent::UserJoined(*user.get_id()));
             self.set_user(user);
             false
         }
@@ -236,7 +246,7 @@ impl<'a> App<'a> {
     pub fn remove_user(&mut self, id: &Uuid) {
         // do not remove the user to keep all the references alive
         // self.users.retain(|usr| usr.get_id() != id);
-        self.room_events.push(RoomEvent::UserLeft(id.clone()));
+        self.room_events.push(RoomEvent::UserLeft(*id));
     }
 
     pub fn set_self(&mut self, usr: &User) {

@@ -5,7 +5,7 @@ use ratatui::{
 };
 use uuid::Uuid;
 
-use crate::helpers::{AsSpan, FindUser};
+use crate::helpers::FindUser;
 
 #[derive(Clone, Debug)]
 pub enum RoomEvent {
@@ -16,7 +16,7 @@ pub enum RoomEvent {
 }
 
 impl RoomEvent {
-    pub fn as_row(&self, users: &Vec<User>) -> Row<'_> {
+    pub fn as_row<'a>(&'a self, users: &'a Vec<User>) -> Row<'a> {
         match self {
             RoomEvent::Message(m) => {
                 if let Some(user) = users.iter().find(|u| u.get_id() == m.get_author()) {
@@ -40,7 +40,7 @@ impl RoomEvent {
                 ),
                 Cell::new("left the chat"),
             ])
-            .light_blue(),
+            .red(),
             RoomEvent::UserJoined(id) => Row::new(vec![
                 Cell::new(
                     users
@@ -50,12 +50,12 @@ impl RoomEvent {
                 ),
                 Cell::new("joined the chat"),
             ])
-            .light_red(),
+            .light_green(),
             RoomEvent::UserNameChange { from, to } => Row::new(vec![
                 Cell::new(from.to_owned()),
                 Cell::new(format!("is now known as {to}")),
             ])
-            .light_red(),
+            .light_green(),
         }
     }
 }

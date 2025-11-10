@@ -22,7 +22,22 @@ impl AsSpan for Option<&User> {
     }
 }
 
+impl AsSpan for Option<User> {
+    fn as_span(&self) -> Span<'_> {
+        match self {
+            Some(usr) => usr.as_span(),
+            None => Span::from("Loading...").dim(),
+        }
+    }
+}
+
 impl AsSpan for &User {
+    fn as_span(&self) -> Span<'_> {
+        Span::from(self.get_name())
+    }
+}
+
+impl AsSpan for User {
     fn as_span(&self) -> Span<'_> {
         Span::from(self.get_name())
     }

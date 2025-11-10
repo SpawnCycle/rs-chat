@@ -10,7 +10,7 @@ use tungstenite::client::IntoClientRequest;
 
 use crate::consts::TICK_DURATION;
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WsEvent {
     SelfInfo(User),
     UserAdd(User),
@@ -21,7 +21,7 @@ pub enum WsEvent {
     Quit,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WsAction {
     Message(String),
     ChangeName(String),
@@ -82,8 +82,7 @@ impl WsHandler {
     }
 
     async fn handle_actions(&mut self) -> bool {
-        let mut recv_res = self.rx.try_recv();
-        while let Ok(res) = recv_res {
+        while let Ok(res) = self.rx.try_recv() {
             match res {
                 WsAction::Message(msg) => {
                     let _ = self
@@ -123,9 +122,8 @@ impl WsHandler {
                         .await;
                 }
             }
-            recv_res = self.rx.try_recv();
         }
-        if recv_res.unwrap_err() == TryRecvError::Disconnected {
+        if self.rx.try_recv().unwrap_err() == TryRecvError::Disconnected {
             let _ = self.tx.send(WsEvent::Quit).await;
             return true;
         }
