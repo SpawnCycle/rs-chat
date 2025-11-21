@@ -1,10 +1,10 @@
 [package]
-name = "eszi_server"
+name = "chat_server"
 version = "0.1.0"
 edition = "2024"
 authors = ["Krickij Lászlo <krickijlaszlo@gmail.com>"]
 description = """
-Server for eszichat
+A chat server
 """
 
 [profile.release]
@@ -12,13 +12,14 @@ opt-level = 3
 codegen-units = 1
 
 [dependencies]
-eszi_lib = { path = "../eszi_lib" }
+chat_lib = { path = "../chat_lib" }
 
 log = "0.4.28"
 log4rs = "1.4.0"
 names = "0.14.0"
 rocket = "0.5.1"
 rocket_ws = "0.1.1"
+rustrict = "0.7.36"
 serde = "1.0.219"
 serde_json = "1.0.143"
 tokio = "1.47.1"

@@ -1,10 +1,10 @@
 [package]
-name = "eszi_client"
+name = "chat_client"
 version = "0.1.0"
 edition = "2024"
 authors = ["Krickij Lászlo <krickijlaszlo@gmail.com>"]
 description = """
-Eszichat client
+Chat client
 """
 
 [profile.release]
@@ -12,7 +12,7 @@ opt-level = 3
 codegen-units = 1
 
 [dependencies]
-eszi_lib = { path = "../eszi_lib" }
+chat_lib = { path = "../chat_lib" }
 
 crossterm = "0.29.0"
 futures = "0.3.31"

@@ -1,6 +1,6 @@
 use tokio::sync::broadcast;
 
-use eszi_lib::types::{ServerMessage, User};
+use chat_lib::types::{ServerMessage, User};
 use uuid::Uuid;
 
 pub type BroadCastT = ServerMessage;
@@ -21,7 +21,10 @@ impl Room {
     }
 
     pub fn get_user(&self, id: Uuid) -> Option<&User> {
-        self.users.iter().find(|&i| *i.get_id() == id).map(|v| v as _)
+        self.users
+            .iter()
+            .find(|&i| *i.get_id() == id)
+            .map(|v| v as _)
     }
 
     pub fn remove_user(&mut self, id: Uuid) {

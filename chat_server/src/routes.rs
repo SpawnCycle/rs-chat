@@ -1,12 +1,14 @@
-use eszi_lib::types::Sync;
-use eszi_lib::types::{ServerMessage, User};
+use chat_lib::types::Sync;
+use chat_lib::types::{ServerMessage, User};
 
 use rocket::{Build, Rocket, State, get, routes};
+use rustrict::Context;
 use uuid::Uuid;
 
-use crate::loops::ws_step;
-use crate::types::MsgBroadcastSender;
-use crate::types::Room;
+use crate::{
+    loops::WsLoopCtx,
+    types::{MsgBroadcastSender, Room},
+};
 
 pub fn bind(r: Rocket<Build>) -> Rocket<Build> {
     r.mount("/ws", routes![ws_root])
@@ -20,21 +22,22 @@ fn ws_root(
 ) -> rocket_ws::Channel<'static> {
     let id = Uuid::new_v4();
     let tx = bc.inner().clone();
-    let mut rx = bc.subscribe();
-    let mut room = room.inner().clone();
+    let rx = bc.subscribe();
+    let room = room.inner().clone();
 
-    ws.channel(move |mut stream| {
+    ws.channel(move |stream| {
         Box::pin(async move {
             let new_user = User::new(id, id.to_string());
-
             {
-                room.lock().await.users.push(new_user.to_owned()); // holy '.'s
+                room.lock().await.users.push(new_user.to_owned());
             }
+            let _ = tx.send(ServerMessage::UserJoined(new_user.to_owned()));
 
-            let _ = tx.send(ServerMessage::UserJoined(new_user));
+            let ctx = Context::new();
+            let mut loop_ctx = WsLoopCtx::new(rx, tx, stream, room, id, ctx);
 
             loop {
-                if ws_step(&mut rx, &tx, &mut stream, &mut room, id).await? {
+                if loop_ctx.ws_step().await? {
                     break;
                 }
             }

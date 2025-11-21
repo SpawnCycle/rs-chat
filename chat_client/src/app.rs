@@ -1,6 +1,6 @@
-use std::{process::exit, sync::mpsc::SyncSender};
+use std::sync::mpsc::SyncSender;
 
-use eszi_lib::types::{Message, User};
+use chat_lib::types::{Message, User};
 
 use ratatui::{
     Frame,
@@ -197,7 +197,7 @@ impl<'a> App<'a> {
             .iter()
             .for_each(|msg| {
                 let id = *msg.get_author();
-                if self.users.iter().find(|usr| usr.get_id() == &id).is_none()
+                if !self.users.iter().any(|usr| usr.get_id() == &id)
                     && Some(&id) != self.self_id.as_ref()
                 {
                     self.send_action(WsAction::RequestUser(id));

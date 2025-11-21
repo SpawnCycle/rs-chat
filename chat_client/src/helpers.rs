@@ -1,5 +1,5 @@
 use crate::room_event::RoomEvent;
-use eszi_lib::types::*;
+use chat_lib::types::*;
 use ratatui::{style::Stylize, text::Span};
 use uuid::Uuid;
 

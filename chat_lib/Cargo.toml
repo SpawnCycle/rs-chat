@@ -1,10 +1,10 @@
 [package]
-name = "eszi_lib"
+name = "chat_lib"
 version = "0.1.0"
 edition = "2024"
 authors = ["Krickij Lászlo <krickijlaszlo@gmail.com>"]
 description = """
-Library for eszichat
+Library for chat
 """
 
 [dependencies]

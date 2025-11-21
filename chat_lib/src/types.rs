@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 
 pub type Sync<T> = Arc<Mutex<T>>;
@@ -29,8 +29,8 @@ pub enum ServerMessage {
     UserData(User),
     SelfData(User),
     UnsupportedMessage(String),
-    Arbitrary(String),
     InvalidUser(Uuid),
+    Banned { duration: Duration, reason: String },
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -61,8 +61,8 @@ impl ServerMessage {
             ServerMessage::UserData(user) => *user.get_id() == id,
             ServerMessage::SelfData(user) => *user.get_id() == id,
             ServerMessage::UnsupportedMessage(_) => false,
-            ServerMessage::Arbitrary(_) => false,
             ServerMessage::InvalidUser(uuid) => *uuid == id,
+            ServerMessage::Banned { .. } => false,
         }
     }
 }

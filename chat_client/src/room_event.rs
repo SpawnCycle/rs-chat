@@ -1,4 +1,4 @@
-use eszi_lib::types::*;
+use chat_lib::types::*;
 use ratatui::{
     style::Stylize,
     widgets::{Cell, Row},

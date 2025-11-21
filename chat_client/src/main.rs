@@ -5,14 +5,10 @@ mod logger;
 mod room_event;
 mod ws_handler;
 
-use std::io;
-
-use ratatui::crossterm::event;
-
 use app::App;
-use std::sync::mpsc::sync_channel;
+use ratatui::crossterm::event;
+use std::{io, sync::mpsc::sync_channel};
 use tokio::sync::mpsc::channel;
-
 use ws_handler::{WsAction, WsEvent, WsHandler};
 
 use consts::TICK_DURATION;

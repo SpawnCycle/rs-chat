@@ -1,4 +1,4 @@
-use eszi_lib::types::{ClientMessage, Message, ServerMessage, User};
+use chat_lib::types::{ClientMessage, Message, ServerMessage, User};
 use futures::{SinkExt, StreamExt};
 use std::sync::mpsc::{Receiver, TryRecvError};
 use tokio::net::TcpStream;
@@ -58,10 +58,15 @@ impl WsHandler {
         tout.await.unwrap_or_default()
     }
 
+    pub async fn close(&mut self) {
+        let _ = self.stream.close(None).await;
+        let _ = self.tx.send(WsEvent::Quit).await;
+    }
+
     async fn handle_stream(&mut self) -> bool {
         let msg = self.stream.next().await;
         if msg.is_none() {
-            let _ = self.tx.send(WsEvent::Quit).await;
+            self.close().await;
             return true;
         }
         let msg = msg.unwrap();
@@ -69,7 +74,7 @@ impl WsHandler {
             Ok(res) => match res {
                 tungstenite::Message::Text(txt) => self.handle_message(txt.as_ref()).await,
                 tungstenite::Message::Close(_) => {
-                    let _ = self.tx.send(WsEvent::Quit).await;
+                    self.close().await;
                     true
                 }
                 _ => {
@@ -124,7 +129,7 @@ impl WsHandler {
             }
         }
         if self.rx.try_recv().unwrap_err() == TryRecvError::Disconnected {
-            let _ = self.tx.send(WsEvent::Quit).await;
+            self.close().await;
             return true;
         }
         false
@@ -163,37 +168,37 @@ impl WsHandler {
                 }
                 ServerMessage::AllUsers(_)
                 | ServerMessage::UnsupportedMessage(_)
-                | ServerMessage::Arbitrary(_)
+                | ServerMessage::Banned { .. }
                 | ServerMessage::InvalidUser(_) => {
                     log::error!("Server sending unimplemented data");
-                    true
+                    false
                 }
             }
         } else {
             log::error!("Server trying to send unsupported object or plaint text");
-            true
+            false
         }
     }
 
     async fn handle_ws_error(&mut self, err: tungstenite::Error) -> bool {
         match err {
             tungstenite::Error::ConnectionClosed => {
-                let _ = self.tx.send(WsEvent::Quit).await;
+                self.close().await;
                 true
             }
             tungstenite::Error::AlreadyClosed => {
                 log::warn!("Trying to work with closed websocket");
-                let _ = self.tx.send(WsEvent::Quit).await;
+                self.close().await;
                 true
             }
             tungstenite::Error::Io(err) => {
                 log::error!("An IO error happened: {err}");
-                let _ = self.tx.send(WsEvent::Quit).await;
+                self.close().await;
                 true
             }
             _ => {
                 log::error!("Websocket error");
-                let _ = self.tx.send(WsEvent::Quit).await;
+                self.close().await;
                 true
             }
         }
