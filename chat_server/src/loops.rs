@@ -1,7 +1,7 @@
-use chat_lib::types::ClientMessage;
+use chat_lib::prelude::*;
 use chat_lib::types::Message as ChatMessage;
-use chat_lib::types::ServerMessage;
 use chat_lib::types::Sync;
+
 use rocket::futures::{SinkExt, StreamExt};
 use rocket_ws::{Message, result, stream::DuplexStream};
 use rustrict::Context;
@@ -12,7 +12,7 @@ use uuid::Uuid;
 use crate::types::Room;
 use crate::types::{MsgBroadcastReceiver, MsgBroadcastSender};
 
-type WsRes = Result<bool, result::Error>;
+pub type WsLoopResult = Result<bool, result::Error>;
 
 pub struct WsLoopCtx {
     rx: MsgBroadcastReceiver,
@@ -24,7 +24,7 @@ pub struct WsLoopCtx {
 }
 
 impl WsLoopCtx {
-    pub fn new(
+    pub const fn new(
         rx: MsgBroadcastReceiver,
         tx: MsgBroadcastSender,
         stream: DuplexStream,
@@ -42,18 +42,18 @@ impl WsLoopCtx {
         }
     }
 
-    pub async fn ws_step(&mut self) -> WsRes {
+    pub async fn ws_step(&mut self) -> WsLoopResult {
         tokio::select! {
             Some(res) = self.stream.next() => {
                 match res {
                     Err(err) => {
-                        self.stream_handle_err().await?;
+                        self.handle_stream_err().await?;
 
                         Err(err)
                     }
                     Ok(msg) => {
                         match msg {
-                            Message::Text(txt) => self.text_branch(&txt).await,
+                            Message::Text(txt) => self.handle_text(&txt).await,
                             Message::Close(_) => {
                                 if let Some(user) = self.room.lock().await.get_user(self.id) {
                                     let _ = self.tx.send(ServerMessage::UserLeft(user.clone()));
@@ -65,7 +65,7 @@ impl WsLoopCtx {
                     }
                 }
             }
-            res = self.rx.recv() => self.rx_branch(res).await,
+            res = self.rx.recv() => self.handle_rx(res).await,
             else => {
                 if let Some(user) = self.room.lock().await.get_user(self.id) {
                     let _ = self.tx.send(ServerMessage::UserLeft(user.clone()));
@@ -75,7 +75,7 @@ impl WsLoopCtx {
         }
     }
 
-    async fn text_branch(&mut self, txt: &str) -> WsRes {
+    async fn handle_text(&mut self, txt: &str) -> WsLoopResult {
         if let Ok(msg) = serde_json::from_str::<ClientMessage>(txt) {
             match msg {
                 ClientMessage::SendMessage(msg) => {
@@ -83,18 +83,16 @@ impl WsLoopCtx {
                 }
                 ClientMessage::ChangeUserName(name) => {
                     let mut room = self.room.lock().await;
-                    if room.has_user(self.id) {
-                        let user = room
-                            .users
-                            .iter_mut()
-                            .find(|u| *u.get_id() == self.id)
-                            .unwrap();
-                        user.set_name(name);
-                        let _ = self.tx.send(ServerMessage::UserNameChange(user.clone()));
-                    } else {
-                        self.stream
-                            .send(ServerMessage::InvalidUser(self.id).as_wsmsg())
-                            .await?;
+                    match room.get_user_mut(self.id) {
+                        Some(user) => {
+                            user.set_name(name);
+                            let _ = self.tx.send(ServerMessage::UserNameChange(user.clone()));
+                        }
+                        None => {
+                            self.stream
+                                .send(ServerMessage::InvalidUser(self.id).as_wsmsg())
+                                .await?;
+                        }
                     }
                 }
                 ClientMessage::GetUserData(uuid) => {
@@ -110,7 +108,11 @@ impl WsLoopCtx {
                 }
                 ClientMessage::GetSelf => {
                     let room = self.room.lock().await;
-                    let user = room.users.iter().find(|u| *u.get_id() == self.id).unwrap();
+                    let user = room
+                        .users
+                        .iter()
+                        .find(|u| *u.get_id() == self.id)
+                        .expect("Should have self");
                     self.stream
                         .send(ServerMessage::SelfData(user.clone()).as_wsmsg())
                         .await?;
@@ -122,7 +124,7 @@ impl WsLoopCtx {
         Ok(false)
     }
 
-    async fn rx_branch(&mut self, res: Result<ServerMessage, RecvError>) -> WsRes {
+    async fn handle_rx(&mut self, res: Result<ServerMessage, RecvError>) -> WsLoopResult {
         match res {
             Ok(msg) => {
                 self.stream.send(msg.as_wsmsg()).await?;
@@ -142,7 +144,7 @@ impl WsLoopCtx {
         }
     }
 
-    async fn stream_handle_err(&mut self) -> Result<(), result::Error> {
+    async fn handle_stream_err(&mut self) -> Result<(), result::Error> {
         let mut room = self.room.lock().await;
         let user = room.get_user(self.id);
         self.stream.close(Default::default()).await?;

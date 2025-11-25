@@ -1,12 +1,13 @@
-use chat_lib::types::{ClientMessage, Message, ServerMessage, User};
+use chat_lib::prelude::*;
 use futures::{SinkExt, StreamExt};
 use std::sync::mpsc::{Receiver, TryRecvError};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::Sender;
 use uuid::Uuid;
 
+use tokio_tungstenite::tungstenite;
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
-use tungstenite::client::IntoClientRequest;
 
 use crate::consts::TICK_DURATION;
 
@@ -65,13 +66,12 @@ impl WsHandler {
 
     async fn handle_stream(&mut self) -> bool {
         let msg = self.stream.next().await;
-        if msg.is_none() {
-            self.close().await;
-            return true;
-        }
-        let msg = msg.unwrap();
         match msg {
-            Ok(res) => match res {
+            None => {
+                self.close().await;
+                true
+            }
+            Some(Ok(res)) => match res {
                 tungstenite::Message::Text(txt) => self.handle_message(txt.as_ref()).await,
                 tungstenite::Message::Close(_) => {
                     self.close().await;
@@ -82,7 +82,7 @@ impl WsHandler {
                     false
                 }
             },
-            Err(err) => self.handle_ws_error(err).await,
+            Some(Err(err)) => self.handle_ws_error(err).await,
         }
     }
 
@@ -128,7 +128,7 @@ impl WsHandler {
                 }
             }
         }
-        if self.rx.try_recv().unwrap_err() == TryRecvError::Disconnected {
+        if self.rx.try_recv().expect_err("Already checked") == TryRecvError::Disconnected {
             self.close().await;
             return true;
         }

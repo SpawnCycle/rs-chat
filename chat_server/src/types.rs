@@ -1,6 +1,6 @@
 use tokio::sync::broadcast;
 
-use chat_lib::types::{ServerMessage, User};
+use chat_lib::prelude::*;
 use uuid::Uuid;
 
 pub type BroadCastT = ServerMessage;
@@ -24,6 +24,13 @@ impl Room {
         self.users
             .iter()
             .find(|&i| *i.get_id() == id)
+            .map(|v| v as _)
+    }
+
+    pub fn get_user_mut(&mut self, id: Uuid) -> Option<&mut User> {
+        self.users
+            .iter_mut()
+            .find(|i| *i.get_id() == id)
             .map(|v| v as _)
     }
 

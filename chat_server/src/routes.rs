@@ -1,5 +1,5 @@
+use chat_lib::prelude::*;
 use chat_lib::types::Sync;
-use chat_lib::types::{ServerMessage, User};
 
 use rocket::{Build, Rocket, State, get, routes};
 use rustrict::Context;

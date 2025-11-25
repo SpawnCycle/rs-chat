@@ -7,12 +7,15 @@ description = """
 Chat client
 """
 
+[lints]
+workspace = true
+
 [profile.release]
 opt-level = 3
 codegen-units = 1
 
 [dependencies]
-chat_lib = { path = "../chat_lib" }
+chat_lib = { path = "../chat_lib", features = ["ratatui_span"] }
 
 crossterm = "0.29.0"
 futures = "0.3.31"
@@ -24,6 +27,5 @@ serde_json = "1.0.143"
 tokio = "1.47.1"
 tokio-tungstenite = "0.27.0"
 tui-textarea = "0.7.0"
-tungstenite = "0.27.0"
 uuid = { version = "1.18.1", features = ["v4", "serde"] }
 anyhow = "1.0.100"

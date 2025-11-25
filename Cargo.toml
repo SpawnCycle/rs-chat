@@ -1,3 +1,8 @@
 [workspace]
 resolver = "3"
 members = ["chat_client", "chat_lib", "chat_server"]
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+needless_match = "deny"
+redunsddant_pattenrn = "deny"

@@ -17,7 +17,7 @@ pub fn setup() {
             "{l} - {d(%Y-%m-%d %H:%M:%S)}: {m}{n}",
         )))
         .build(log_path)
-        .unwrap();
+        .expect("File log builder failed");
 
     let config = Config::builder()
         .appender(Appender::builder().build("file_logger", Box::new(file_logger)))
@@ -26,7 +26,7 @@ pub fn setup() {
                 .appender("file_logger")
                 .build(LevelFilter::Info),
         )
-        .unwrap();
+        .expect("Log config builder failed");
 
-    let _handle = log4rs::init_config(config).unwrap();
+    let _handle = log4rs::init_config(config).expect("Log initialization failed");
 }

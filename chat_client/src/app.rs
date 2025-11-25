@@ -1,13 +1,11 @@
-use std::sync::mpsc::SyncSender;
-
-use chat_lib::types::{Message, User};
-
+use chat_lib::prelude::*;
 use ratatui::{
     Frame,
     crossterm::event::Event,
     layout::{Constraint, Layout},
     widgets::{Block, Borders, Paragraph, Row, Table},
 };
+use std::sync::mpsc::SyncSender;
 use tui_textarea::{Input, Key, TextArea};
 use uuid::Uuid;
 

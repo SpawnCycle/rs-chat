@@ -17,7 +17,6 @@ pub struct Message {
     from: Uuid,
     content: String,
 }
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum ServerMessage {
@@ -44,11 +43,7 @@ pub enum ClientMessage {
 
 impl ServerMessage {
     pub fn as_json(&self) -> String {
-        serde_json::to_string(self).unwrap()
-    }
-
-    pub fn as_wsmsg(&self) -> rocket_ws::Message {
-        rocket_ws::Message::Text(self.as_json())
+        serde_json::to_string(self).expect("Serialize implementation failed")
     }
 
     pub fn is_user(&self, id: Uuid) -> bool {
@@ -69,11 +64,7 @@ impl ServerMessage {
 
 impl ClientMessage {
     pub fn as_json(&self) -> String {
-        serde_json::to_string(self).unwrap()
-    }
-
-    pub fn as_wsmsg(&self) -> rocket_ws::Message {
-        rocket_ws::Message::Text(self.as_json())
+        serde_json::to_string(self).expect("Serialize implementation failed")
     }
 }
 

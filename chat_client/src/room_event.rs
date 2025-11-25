@@ -1,11 +1,9 @@
-use chat_lib::types::*;
+use chat_lib::prelude::*;
 use ratatui::{
     style::Stylize,
     widgets::{Cell, Row},
 };
 use uuid::Uuid;
-
-use crate::helpers::FindUser;
 
 #[derive(Clone, Debug)]
 pub enum RoomEvent {
