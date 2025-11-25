@@ -5,4 +5,8 @@ members = ["chat_client", "chat_lib", "chat_server"]
 [workspace.lints.clippy]
 unwrap_used = "deny"
 needless_match = "deny"
-redunsddant_pattenrn = "deny"
+redundant_pattern = "deny"
+
+[profile.release]
+opt-level = 3
+codegen-units = 1

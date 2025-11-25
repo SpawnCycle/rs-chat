@@ -10,10 +10,6 @@ Chat client
 [lints]
 workspace = true
 
-[profile.release]
-opt-level = 3
-codegen-units = 1
-
 [dependencies]
 chat_lib = { path = "../chat_lib", features = ["ratatui_span"] }
 
