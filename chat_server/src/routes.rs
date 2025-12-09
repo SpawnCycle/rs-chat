@@ -1,21 +1,17 @@
 use chat_lib::prelude::*;
 use chat_lib::types::Sync;
 
-use rocket::{Build, Rocket, State, get, routes};
+use rocket::{State, get};
 use rustrict::Context;
 use uuid::Uuid;
 
 use crate::{
-    loops::WsLoopCtx,
     types::{MsgBroadcastSender, Room},
+    ws_handler::WsHandler,
 };
 
-pub fn bind(r: Rocket<Build>) -> Rocket<Build> {
-    r.mount("/ws", routes![ws_root])
-}
-
 #[get("/")]
-fn ws_root(
+pub fn ws_root(
     ws: rocket_ws::WebSocket,
     bc: &State<MsgBroadcastSender>,
     room: &State<Sync<Room>>,
@@ -34,7 +30,7 @@ fn ws_root(
             let _ = tx.send(ServerMessage::UserJoined(new_user.to_owned()));
 
             let ctx = Context::new();
-            let mut loop_ctx = WsLoopCtx::new(rx, tx, stream, room, id, ctx);
+            let mut loop_ctx = WsHandler::new(rx, tx, stream, room, id, ctx);
 
             loop {
                 if loop_ctx.ws_step().await? {

@@ -1,6 +1,6 @@
 mod app;
 mod consts;
-mod logger;
+mod logging;
 mod room_event;
 mod ws_handler;
 
@@ -14,7 +14,7 @@ use consts::TICK_DURATION;
 
 #[tokio::main]
 async fn main() -> Result<(), io::Error> {
-    logger::setup();
+    logging::setup();
 
     let (e_tx, mut e_rx) = channel::<WsEvent>(64);
     let (a_tx, a_rx) = sync_channel::<WsAction>(64);

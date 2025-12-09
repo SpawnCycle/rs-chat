@@ -3,7 +3,7 @@ use chat_lib::types::Message as ChatMessage;
 use chat_lib::types::Sync;
 
 use rocket::futures::{SinkExt, StreamExt};
-use rocket_ws::{Message, result, stream::DuplexStream};
+use rocket_ws::{Message, stream::DuplexStream};
 use rustrict::Context;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
@@ -12,9 +12,9 @@ use uuid::Uuid;
 use crate::types::Room;
 use crate::types::{MsgBroadcastReceiver, MsgBroadcastSender};
 
-pub type WsLoopResult = Result<bool, result::Error>;
+pub type WsResult<T> = Result<T, rocket_ws::result::Error>;
 
-pub struct WsLoopCtx {
+pub struct WsHandler {
     rx: MsgBroadcastReceiver,
     tx: MsgBroadcastSender,
     stream: DuplexStream,
@@ -23,7 +23,7 @@ pub struct WsLoopCtx {
     ctx: Context,
 }
 
-impl WsLoopCtx {
+impl WsHandler {
     pub const fn new(
         rx: MsgBroadcastReceiver,
         tx: MsgBroadcastSender,
@@ -42,7 +42,7 @@ impl WsLoopCtx {
         }
     }
 
-    pub async fn ws_step(&mut self) -> WsLoopResult {
+    pub async fn ws_step(&mut self) -> WsResult<bool> {
         tokio::select! {
             Some(res) = self.stream.next() => {
                 match res {
@@ -75,7 +75,7 @@ impl WsLoopCtx {
         }
     }
 
-    async fn handle_text(&mut self, txt: &str) -> WsLoopResult {
+    async fn handle_text(&mut self, txt: &str) -> WsResult<bool> {
         if let Ok(msg) = serde_json::from_str::<ClientMessage>(txt) {
             match msg {
                 ClientMessage::SendMessage(msg) => {
@@ -124,7 +124,7 @@ impl WsLoopCtx {
         Ok(false)
     }
 
-    async fn handle_rx(&mut self, res: Result<ServerMessage, RecvError>) -> WsLoopResult {
+    async fn handle_rx(&mut self, res: Result<ServerMessage, RecvError>) -> WsResult<bool> {
         match res {
             Ok(msg) => {
                 self.stream.send(msg.as_wsmsg()).await?;
@@ -144,7 +144,7 @@ impl WsLoopCtx {
         }
     }
 
-    async fn handle_stream_err(&mut self) -> Result<(), result::Error> {
+    async fn handle_stream_err(&mut self) -> Result<(), rocket_ws::result::Error> {
         let mut room = self.room.lock().await;
         let user = room.get_user(self.id);
         self.stream.close(Default::default()).await?;
@@ -156,7 +156,7 @@ impl WsLoopCtx {
         Ok(())
     }
 
-    async fn send_msg(&mut self, txt: &str) -> Result<(), result::Error> {
+    async fn send_msg(&mut self, txt: &str) -> WsResult<()> {
         let txt = self.ctx.process(txt.to_string());
         match txt {
             Ok(txt) => {

@@ -1,18 +1,25 @@
-mod loops;
+mod logging;
 mod routes;
 mod types;
+mod ws_fairing;
+mod ws_handler;
 
-use tokio::sync::broadcast;
+use rocket::{Build, Rocket};
 
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use crate::ws_fairing::WsFairing;
 
-use types::{BroadCastT, Room};
+#[rocket::main]
+async fn main() -> anyhow::Result<()> {
+    logging::setup()?;
 
-#[rocket::launch]
-async fn rocket() -> _ {
-    let room = Arc::new(Mutex::new(Room::new()));
-    let (tx, _rx) = broadcast::channel::<BroadCastT>(16);
+    rocket()
+        .launch()
+        .await
+        .inspect_err(|err| log::error!("There was a fatal error: {err}"))?;
 
-    routes::bind(rocket::build()).manage(tx).manage(room)
+    Ok(())
+}
+
+fn rocket() -> Rocket<Build> {
+    rocket::build().attach(WsFairing)
 }
