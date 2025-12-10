@@ -4,7 +4,7 @@ use log::LevelFilter;
 use log4rs::{
     Config,
     append::{console::ConsoleAppender, file::FileAppender},
-    config::{Appender, Logger, Root},
+    config::{Appender, Root},
     encode::pattern::PatternEncoder,
 };
 use std::path::PathBuf;
@@ -23,40 +23,39 @@ pub fn setup() -> Result<log4rs::Handle, anyhow::Error> {
         }
     };
 
-    let pattern = PatternEncoder::new("{l} - {d(%Y-%m-%d %H:%M:%S)}: {m}{n}");
-
-    let (file_level, console_level) = {
+    let log_level = {
         if cfg!(debug_assertions) {
-            // output more to console because files can inflate very fast from excessive loggin
-            (LevelFilter::Debug, LevelFilter::Trace)
+            LevelFilter::Trace
         } else {
-            // output more to file to have more context for reports
-            (LevelFilter::Info, LevelFilter::Warn)
+            LevelFilter::Info
         }
     };
 
     let file_appender = FileAppender::builder()
-        .encoder(Box::new(pattern.clone()))
+        .encoder(Box::new(PatternEncoder::new(
+            "{l} - {d(%Y-%m-%d %H:%M:%S)}: {m}{n}",
+        )))
         .build(log_file)
-        .context("File logger filed to initialize: {}")?;
+        .context("File logger filed to initialize")?;
 
     let console_appender = ConsoleAppender::builder()
-        .encoder(Box::new(pattern.clone()))
+        .encoder(Box::new(PatternEncoder::new(
+            "{h({l})} - {d(%H:%M:%S)}: {m}{n}",
+        )))
+        .tty_only(true)
         .build();
 
     let config = Config::builder()
         .appender(Appender::builder().build("file_appender", Box::new(file_appender)))
         .appender(Appender::builder().build("console_appender", Box::new(console_appender)))
-        .logger(
-            Logger::builder()
-                .additive(true)
-                .appender("console_appender")
-                .build("app::console_logger", console_level),
+        .build(
+            Root::builder()
+                .appenders(["console_appender", "file_appender"])
+                .build(log_level),
         )
-        .build(Root::builder().appender("file_appender").build(file_level))
-        .context("Could not build log config: {}")?;
+        .context("Could not build log config")?;
 
-    let handle = log4rs::init_config(config).context("Logger failed to initialize: {}")?;
+    let handle = log4rs::init_config(config).context("Logger failed to initialize")?;
 
     Ok(handle)
 }

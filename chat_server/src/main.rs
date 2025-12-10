@@ -1,3 +1,4 @@
+mod config;
 mod logging;
 mod routes;
 mod types;
@@ -15,11 +16,11 @@ async fn main() -> anyhow::Result<()> {
     rocket()
         .launch()
         .await
-        .inspect_err(|err| log::error!("There was a fatal error: {err}"))?;
+        .inspect_err(|err| log::error!("There was a fatal error during: {err}"))?;
 
     Ok(())
 }
 
 fn rocket() -> Rocket<Build> {
-    rocket::build().attach(WsFairing)
+    rocket::custom(config::rocket()).attach(WsFairing)
 }

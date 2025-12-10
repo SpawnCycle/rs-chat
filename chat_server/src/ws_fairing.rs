@@ -26,6 +26,8 @@ impl Fairing for WsFairing {
         let room = Arc::new(Mutex::new(Room::new()));
         let (tx, _rx) = broadcast::channel::<BroadCastT>(16);
 
+        log::trace!("Websocket infrastructure initialized");
+
         Ok(rocket
             .manage(room)
             .manage(tx)

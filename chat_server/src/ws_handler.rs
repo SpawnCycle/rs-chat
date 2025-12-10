@@ -2,7 +2,9 @@ use chat_lib::prelude::*;
 use chat_lib::types::Message as ChatMessage;
 use chat_lib::types::Sync;
 
+use rocket::Shutdown;
 use rocket::futures::{SinkExt, StreamExt};
+use rocket_ws::result::Error;
 use rocket_ws::{Message, stream::DuplexStream};
 use rustrict::Context;
 use tokio::sync::broadcast;
@@ -12,18 +14,19 @@ use uuid::Uuid;
 use crate::types::Room;
 use crate::types::{MsgBroadcastReceiver, MsgBroadcastSender};
 
-pub type WsResult<T> = Result<T, rocket_ws::result::Error>;
+pub type WsResult<T = ()> = Result<T, rocket_ws::result::Error>;
 
-pub struct WsHandler {
+pub struct WsHandler<'a> {
     rx: MsgBroadcastReceiver,
     tx: MsgBroadcastSender,
     stream: DuplexStream,
     room: Sync<Room>,
     id: Uuid,
     ctx: Context,
+    sd: &'a mut Shutdown,
 }
 
-impl WsHandler {
+impl<'a> WsHandler<'a> {
     pub const fn new(
         rx: MsgBroadcastReceiver,
         tx: MsgBroadcastSender,
@@ -31,6 +34,7 @@ impl WsHandler {
         room: Sync<Room>,
         id: Uuid,
         ctx: Context,
+        sd: &'a mut Shutdown,
     ) -> Self {
         Self {
             rx,
@@ -39,39 +43,41 @@ impl WsHandler {
             room,
             id,
             ctx,
+            sd,
         }
     }
 
     pub async fn ws_step(&mut self) -> WsResult<bool> {
         tokio::select! {
             Some(res) = self.stream.next() => {
-                match res {
-                    Err(err) => {
-                        self.handle_stream_err().await?;
-
-                        Err(err)
-                    }
-                    Ok(msg) => {
-                        match msg {
-                            Message::Text(txt) => self.handle_text(&txt).await,
-                            Message::Close(_) => {
-                                if let Some(user) = self.room.lock().await.get_user(self.id) {
-                                    let _ = self.tx.send(ServerMessage::UserLeft(user.clone()));
-                                }
-                                Ok(true)
-                            },
-                            _ => Ok(true)
-                        }
-                    }
-                }
+                self.handle_stream(res).await
             }
             res = self.rx.recv() => self.handle_rx(res).await,
-            else => {
-                if let Some(user) = self.room.lock().await.get_user(self.id) {
-                    let _ = self.tx.send(ServerMessage::UserLeft(user.clone()));
-                }
+            _ = self.sd.clone() => {
+                self.close_logged().await;
                 Ok(true)
             }
+            else => {
+                self.close_logged().await;
+                Ok(true)
+            }
+        }
+    }
+
+    async fn handle_stream(&mut self, res: Result<Message, Error>) -> WsResult<bool> {
+        match res {
+            Err(err) => {
+                self.close_socket().await?;
+                Err(err)
+            }
+            Ok(msg) => match msg {
+                Message::Text(txt) => self.handle_text(&txt).await,
+                Message::Close(_) => {
+                    self.exit_room().await;
+                    Ok(true)
+                }
+                _ => Ok(true),
+            },
         }
     }
 
@@ -83,7 +89,7 @@ impl WsHandler {
                 }
                 ClientMessage::ChangeUserName(name) => {
                     let mut room = self.room.lock().await;
-                    match room.get_user_mut(self.id) {
+                    match room.get_user_mut(&self.id) {
                         Some(user) => {
                             user.set_name(name);
                             let _ = self.tx.send(ServerMessage::UserNameChange(user.clone()));
@@ -96,7 +102,7 @@ impl WsHandler {
                     }
                 }
                 ClientMessage::GetUserData(uuid) => {
-                    if let Some(user) = self.room.lock().await.get_user(uuid) {
+                    if let Some(user) = self.room.lock().await.get_user(&uuid) {
                         self.stream
                             .send(ServerMessage::UserData(user.clone()).as_wsmsg())
                             .await?;
@@ -108,11 +114,7 @@ impl WsHandler {
                 }
                 ClientMessage::GetSelf => {
                     let room = self.room.lock().await;
-                    let user = room
-                        .users
-                        .iter()
-                        .find(|u| *u.get_id() == self.id)
-                        .expect("Should have self");
+                    let user = room.get_user(&self.id).expect("Should have self");
                     self.stream
                         .send(ServerMessage::SelfData(user.clone()).as_wsmsg())
                         .await?;
@@ -124,6 +126,27 @@ impl WsHandler {
         Ok(false)
     }
 
+    async fn exit_room(&mut self) {
+        let mut room = self.room.lock().await;
+        if let Some(user) = room.get_user(&self.id) {
+            let _ = self.tx.send(ServerMessage::UserLeft(user.clone()));
+        }
+        room.remove_user(&self.id);
+    }
+
+    async fn close_socket(&mut self) -> WsResult {
+        self.exit_room().await;
+        self.stream.close(Default::default()).await?;
+
+        Ok(())
+    }
+
+    async fn close_logged(&mut self) {
+        let _ = self.close_socket().await.inspect_err(|err| {
+            log::error!("There was an error while trying to close socket: {err}",)
+        });
+    }
+
     async fn handle_rx(&mut self, res: Result<ServerMessage, RecvError>) -> WsResult<bool> {
         match res {
             Ok(msg) => {
@@ -132,7 +155,7 @@ impl WsHandler {
                 Ok(false)
             }
             Err(broadcast::error::RecvError::Closed) => {
-                if let Some(user) = self.room.lock().await.get_user(self.id) {
+                if let Some(user) = self.room.lock().await.get_user(&self.id) {
                     let _ = self.tx.send(ServerMessage::UserLeft(user.clone()));
                 }
                 Ok(true)
@@ -144,19 +167,7 @@ impl WsHandler {
         }
     }
 
-    async fn handle_stream_err(&mut self) -> Result<(), rocket_ws::result::Error> {
-        let mut room = self.room.lock().await;
-        let user = room.get_user(self.id);
-        self.stream.close(Default::default()).await?;
-        if let Some(user) = user {
-            let _ = self.tx.send(ServerMessage::UserLeft(user.clone()));
-        }
-        room.remove_user(self.id);
-
-        Ok(())
-    }
-
-    async fn send_msg(&mut self, txt: &str) -> WsResult<()> {
+    async fn send_msg(&mut self, txt: &str) -> WsResult {
         let txt = self.ctx.process(txt.to_string());
         match txt {
             Ok(txt) => {

@@ -1,7 +1,7 @@
 use chat_lib::prelude::*;
 use chat_lib::types::Sync;
 
-use rocket::{State, get};
+use rocket::{Shutdown, State, get};
 use rustrict::Context;
 use uuid::Uuid;
 
@@ -15,6 +15,7 @@ pub fn ws_root(
     ws: rocket_ws::WebSocket,
     bc: &State<MsgBroadcastSender>,
     room: &State<Sync<Room>>,
+    sd: Shutdown,
 ) -> rocket_ws::Channel<'static> {
     let id = Uuid::new_v4();
     let tx = bc.inner().clone();
@@ -23,14 +24,15 @@ pub fn ws_root(
 
     ws.channel(move |stream| {
         Box::pin(async move {
+            let mut sd = sd.clone();
             let new_user = User::new(id, id.to_string());
             {
-                room.lock().await.users.push(new_user.to_owned());
+                room.lock().await.add_user(new_user.clone());
             }
             let _ = tx.send(ServerMessage::UserJoined(new_user.to_owned()));
 
             let ctx = Context::new();
-            let mut loop_ctx = WsHandler::new(rx, tx, stream, room, id, ctx);
+            let mut loop_ctx = WsHandler::new(rx, tx, stream, room, id, ctx, &mut sd);
 
             loop {
                 if loop_ctx.ws_step().await? {
