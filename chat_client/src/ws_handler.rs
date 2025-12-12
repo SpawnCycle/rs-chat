@@ -52,7 +52,7 @@ impl WsHandler {
     }
 
     pub async fn step(&mut self) -> bool {
-        if self.handle_actions().await {
+        if self.process_actions().await {
             return true;
         }
         let tout = tokio::time::timeout(TICK_DURATION / 2, self.handle_stream());
@@ -86,51 +86,58 @@ impl WsHandler {
         }
     }
 
-    async fn handle_actions(&mut self) -> bool {
-        while let Ok(res) = self.rx.try_recv() {
-            match res {
-                WsAction::Message(msg) => {
-                    let _ = self
-                        .stream
-                        .send(tungstenite::Message::Text(
-                            ClientMessage::SendMessage(msg).as_json().into(),
-                        ))
-                        .await;
-                    let _ = self.stream.flush().await;
-                }
-                WsAction::Quit => {
-                    let _ = self.stream.close(Default::default()).await;
-                    return true;
-                }
-                WsAction::ChangeName(name) => {
-                    let _ = self
-                        .stream
-                        .send(tungstenite::Message::Text(
-                            ClientMessage::ChangeUserName(name).as_json().into(),
-                        ))
-                        .await;
-                }
-                WsAction::RequestUser(uuid) => {
-                    let _ = self
-                        .stream
-                        .send(tungstenite::Message::Text(
-                            ClientMessage::GetUserData(uuid).as_json().into(),
-                        ))
-                        .await;
-                }
-                WsAction::RequestSelf => {
-                    let _ = self
-                        .stream
-                        .send(tungstenite::Message::Text(
-                            ClientMessage::GetSelf.as_json().into(),
-                        ))
-                        .await;
-                }
-            }
+    async fn process_actions(&mut self) -> bool {
+        let mut recv = self.rx.try_recv();
+        while let Ok(res) = &recv {
+            self.handle_action(res).await;
+            recv = self.rx.try_recv();
         }
         if self.rx.try_recv().expect_err("Already checked") == TryRecvError::Disconnected {
             self.close().await;
             return true;
+        }
+        false
+    }
+
+    async fn handle_action(&mut self, res: &WsAction) -> bool {
+        match res {
+            WsAction::Message(msg) => {
+                let _ = self
+                    .stream
+                    .send(tungstenite::Message::Text(
+                        ClientMessage::SendMessage(msg.clone()).as_json().into(),
+                    ))
+                    .await;
+                let _ = self.stream.flush().await;
+            }
+            WsAction::Quit => {
+                let _ = self.stream.close(Default::default()).await;
+                return true;
+            }
+            WsAction::ChangeName(name) => {
+                let _ = self
+                    .stream
+                    .send(tungstenite::Message::Text(
+                        ClientMessage::ChangeUserName(name.clone()).as_json().into(),
+                    ))
+                    .await;
+            }
+            WsAction::RequestUser(uuid) => {
+                let _ = self
+                    .stream
+                    .send(tungstenite::Message::Text(
+                        ClientMessage::GetUserData(*uuid).as_json().into(),
+                    ))
+                    .await;
+            }
+            WsAction::RequestSelf => {
+                let _ = self
+                    .stream
+                    .send(tungstenite::Message::Text(
+                        ClientMessage::GetSelf.as_json().into(),
+                    ))
+                    .await;
+            }
         }
         false
     }

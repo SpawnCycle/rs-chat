@@ -1,6 +1,7 @@
 mod app;
 mod consts;
 mod logging;
+mod render_parts;
 mod room_event;
 mod ws_handler;
 

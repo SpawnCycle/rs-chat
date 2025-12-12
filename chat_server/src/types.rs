@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Deref};
+use std::collections::HashMap;
 
 use tokio::sync::broadcast;
 
@@ -13,6 +13,7 @@ pub struct Room {
     users: HashMap<Uuid, User>,
 }
 
+#[allow(unused)]
 impl Room {
     pub fn new() -> Self {
         Self {

@@ -3,13 +3,14 @@ use ratatui::{
     Frame,
     crossterm::event::Event,
     layout::{Constraint, Layout},
-    widgets::{Block, Borders, Paragraph, Row, Table},
+    widgets::{Block, Borders},
 };
-use std::sync::mpsc::SyncSender;
+use std::{num::NonZero, sync::mpsc::SyncSender};
 use tui_textarea::{Input, Key, TextArea};
 use uuid::Uuid;
 
 use crate::{
+    render_parts::{Offset, draw_room_events, draw_top_bar, top_block},
     room_event::RoomEvent,
     ws_handler::{WsAction, WsEvent},
 };
@@ -23,6 +24,7 @@ pub struct App<'a> {
     layout: Layout,
     users: Vec<User>,
     tx: SyncSender<WsAction>,
+    scoll_offset: Option<Offset>,
 }
 
 fn text_area<'a>() -> TextArea<'a> {
@@ -33,11 +35,9 @@ fn text_area<'a>() -> TextArea<'a> {
     input
 }
 
-fn top_block<'a>() -> Block<'a> {
-    Block::new().borders(Borders::BOTTOM)
-}
-
+#[allow(unused)]
 impl<'a> App<'a> {
+    // Core methods
     pub fn new(tx: SyncSender<WsAction>) -> Self {
         let users = Vec::new();
         Self {
@@ -53,6 +53,7 @@ impl<'a> App<'a> {
             ]),
             self_id: None,
             username_field: None,
+            scoll_offset: None,
         }
     }
 
@@ -61,19 +62,25 @@ impl<'a> App<'a> {
             Input {
                 key: Key::Char('n'),
                 ctrl: true,
+                ..
+            } => {
+                self.toggle_text_area();
+            }
+            Input {
+                key: Key::Char('p'),
+                ctrl: true,
                 alt: false,
                 ..
             } => {
-                if self.username_field.is_none() {
-                    let mut text_area = text_area();
-                    text_area.set_block(top_block());
-                    if let Some(usr) = self.get_self() {
-                        text_area.insert_str(usr.get_name());
-                    }
-                    self.username_field = Some(text_area);
-                } else {
-                    self.username_field = None;
-                }
+                self.toggle_offset_mode();
+            }
+            Input {
+                key: Key::Char('p'),
+                ctrl: false,
+                alt: true,
+                ..
+            } => {
+                self.force_disable_offset();
             }
             Input {
                 key: Key::Char('m'),
@@ -84,19 +91,10 @@ impl<'a> App<'a> {
             | Input {
                 key: Key::Enter, ..
             } => {
-                if let Some(text_area) = self.username_field.take() {
-                    let text = text_area.lines()[0].clone();
-                    if text.trim().chars().count() > 0 {
-                        self.send_action(WsAction::ChangeName(text.to_owned()));
-                        self.send_action(WsAction::RequestSelf);
-                    }
-                } else {
-                    let text = self.message_field.lines()[0].clone();
-                    if text.trim().chars().count() > 0 {
-                        self.send_action(WsAction::Message(text.to_owned()));
-                        self.message_field = text_area();
-                    }
-                }
+                self.accept_text();
+            }
+            Input { key: Key::Esc, .. } => {
+                self.exit_text_area();
             }
             Input {
                 key: Key::Char('q'),
@@ -106,49 +104,32 @@ impl<'a> App<'a> {
                 self.quit();
             }
             input => {
-                if let Some(text_area) = &mut self.username_field {
-                    text_area.input(input);
-                } else {
-                    self.message_field.input(input);
-                }
+                self.forward_input(input);
             }
         };
     }
 
     pub fn draw(&self, f: &'_ mut Frame) {
-        let longest_name = self
-            .all_users()
-            .iter()
-            .fold(0, |len, u| len.max(u.get_name().len()));
         let chunks = self.layout.split(f.area());
-        let top_bar = Paragraph::new(
-            self.get_self()
-                .map(|u| u.get_name().to_owned())
-                .unwrap_or("Loading...".to_owned()),
-        )
-        .block(Block::new().borders(Borders::BOTTOM));
-        let rows = self
-            .room_events()
-            .map(|m| m.as_row(self.all_users()))
-            .collect::<Vec<Row>>();
+        let name = self
+            .get_self()
+            .map(|u| u.get_name().to_owned())
+            .unwrap_or("Loading...".to_owned());
 
-        let table = Table::new(
-            rows,
-            &[Constraint::Max(longest_name as u16), Constraint::Fill(1)],
-        );
-
-        if let Some(text_area) = &self.username_field {
-            f.render_widget(text_area, chunks[0]);
+        if let Some(area) = &self.username_field {
+            f.render_widget(area, chunks[0]);
         } else {
-            f.render_widget(&top_bar, chunks[0]);
+            draw_top_bar(f, chunks[0], name);
         }
-        f.render_widget(&table, chunks[1]);
-        f.render_widget(&self.message_field, chunks[2]);
-    }
 
-    // TODO: Handle the errors gracefully
-    pub fn send_action(&mut self, action: WsAction) {
-        let _ = self.tx.send(action);
+        draw_room_events(
+            f,
+            chunks[1],
+            self.room_events(),
+            &self.users,
+            self.scoll_offset,
+        );
+        f.render_widget(&self.message_field, chunks[2]);
     }
 
     pub fn handle_event(&mut self, action: &WsEvent) {
@@ -210,11 +191,107 @@ impl<'a> App<'a> {
             });
     }
 
+    // Helper methods
+
+    // TODO: Handle the errors gracefully
+    pub fn send_action(&mut self, action: WsAction) {
+        let _ = self.tx.send(action);
+    }
+
+    fn toggle_offset_mode(&mut self) {
+        match self.scoll_offset {
+            Some(offset) => match offset {
+                Offset::Absolute(n) => {
+                    let event_count = self.room_events().count() as u32;
+                    let rel = NonZero::new(event_count - n.min(event_count));
+                    match rel {
+                        Some(rel) => self.scoll_offset = Some(Offset::Relative(rel)),
+                        None => self.scoll_offset = None,
+                    }
+                }
+                Offset::Relative(n) => {
+                    let event_count = self.room_events().count() as u32;
+                    let abs = event_count - n.get().min(event_count);
+                    if abs == 0 {
+                        self.scoll_offset = None;
+                    } else {
+                        self.scoll_offset = Some(Offset::Absolute(abs));
+                    }
+                }
+            },
+            None => self.scoll_offset = Some(Offset::Absolute(self.room_events().count() as u32)),
+        }
+    }
+
+    fn force_disable_offset(&mut self) {
+        self.scoll_offset = None;
+    }
+
+    fn accept_text(&mut self) {
+        if let Some(text_area) = self.username_field.take() {
+            let text = text_area.lines()[0].clone();
+            if text.trim().chars().count() > 0 {
+                self.send_action(WsAction::ChangeName(text.to_owned()));
+                self.send_action(WsAction::RequestSelf);
+            }
+        } else {
+            let text = self.message_field.lines()[0].clone();
+            let text = text.trim();
+            if text.chars().count() > 0 {
+                self.send_action(WsAction::Message(text.to_owned()));
+                self.message_field = text_area();
+            }
+        }
+    }
+
+    fn forward_input(&mut self, input: Input) {
+        if let Some(text_area) = &mut self.username_field {
+            text_area.input(input);
+        } else {
+            self.message_field.input(input);
+        }
+    }
+
+    fn toggle_text_area(&mut self) {
+        if self.username_field.is_none() {
+            let mut text_area = text_area();
+            text_area.set_block(top_block());
+            if let Some(usr) = self.get_self() {
+                text_area.insert_str(usr.get_name());
+            }
+            self.username_field = Some(text_area);
+        } else {
+            self.exit_text_area();
+        }
+    }
+
+    fn exit_text_area(&mut self) {
+        self.username_field = None;
+    }
+
+    fn enter_text_area(&mut self) {
+        if self.username_field.is_none() {
+            let mut text_area = text_area();
+            text_area.set_block(top_block());
+            if let Some(usr) = self.get_self() {
+                text_area.insert_str(usr.get_name());
+            }
+            self.username_field = Some(text_area);
+        }
+    }
+
+    pub fn quit(&mut self) {
+        self.should_quit = true;
+        let _ = self.tx.send(WsAction::Quit);
+    }
+
+    // getters/setters
+
     pub fn get_self(&self) -> Option<&User> {
         self.self_id.and_then(|id| self.get_user(&id))
     }
 
-    pub fn room_events(&self) -> impl Iterator<Item = &RoomEvent> {
+    pub fn room_events(&self) -> impl DoubleEndedIterator<Item = &RoomEvent> + ExactSizeIterator {
         self.room_events.iter()
     }
 
@@ -238,10 +315,6 @@ impl<'a> App<'a> {
         } else {
             self.users.push(usr.clone());
         }
-    }
-
-    pub fn all_users(&self) -> &Vec<User> {
-        &self.users
     }
 
     pub fn get_user(&self, id: &Uuid) -> Option<&User> {
@@ -282,10 +355,5 @@ impl<'a> App<'a> {
 
     pub fn should_quit(&self) -> bool {
         self.should_quit
-    }
-
-    pub fn quit(&mut self) {
-        self.should_quit = true;
-        let _ = self.tx.send(WsAction::Quit);
     }
 }

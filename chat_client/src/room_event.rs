@@ -1,7 +1,7 @@
 use chat_lib::prelude::*;
 use ratatui::{
     style::Stylize,
-    widgets::{Cell, Row},
+    text::{Line, Span},
 };
 use uuid::Uuid;
 
@@ -13,46 +13,57 @@ pub enum RoomEvent {
     UserNameChange { from: String, to: String },
 }
 
+pub fn zip_spans<'a>(l: Span<'a>, r: Span<'a>, width: u16) -> Line<'a> {
+    let spaces = ((width as i32) - 1 - (l.width() as i32) - (r.width() as i32).max(1)) as usize;
+
+    Line::from_iter([l, (" ".repeat(spaces).into()), r])
+}
+
 impl RoomEvent {
-    pub fn as_row<'a>(&'a self, users: &'a Vec<User>) -> Row<'a> {
+    pub fn as_line<'a>(&'a self, width: u16, users: &'a Vec<User>) -> Line<'a> {
         match self {
             RoomEvent::Message(m) => {
                 if let Some(user) = users.iter().find(|u| u.get_id() == m.get_author()) {
-                    Row::new(vec![
-                        Cell::new(user.get_name().to_string()),
-                        Cell::new(m.get_content()),
-                    ])
+                    zip_spans(
+                        Span::from(user.get_name().to_string()),
+                        Span::from(m.get_content()),
+                        width,
+                    )
                 } else {
-                    Row::new(vec![
-                        Cell::new("Loading...").dim(),
-                        Cell::new(m.get_content()),
-                    ])
+                    zip_spans(
+                        Span::from("Loading...").dim(),
+                        Span::from(m.get_content()),
+                        width,
+                    )
                 }
             }
-            RoomEvent::UserLeft(id) => Row::new(vec![
-                Cell::new(
+            RoomEvent::UserLeft(id) => zip_spans(
+                Span::from(
                     users
                         .get_user(id)
                         .map(|u| u.get_name().to_owned())
                         .unwrap_or(id.to_string()),
                 ),
-                Cell::new("left the chat"),
-            ])
+                Span::from("left the chat"),
+                width,
+            )
             .red(),
-            RoomEvent::UserJoined(id) => Row::new(vec![
-                Cell::new(
+            RoomEvent::UserJoined(id) => zip_spans(
+                Span::from(
                     users
                         .get_user(id)
                         .map(|u| u.get_name().to_owned())
                         .unwrap_or(id.to_string()),
                 ),
-                Cell::new("joined the chat"),
-            ])
+                Span::from("joined the chat"),
+                width,
+            )
             .light_green(),
-            RoomEvent::UserNameChange { from, to } => Row::new(vec![
-                Cell::new(from.to_owned()),
-                Cell::new(format!("is now known as {to}")),
-            ])
+            RoomEvent::UserNameChange { from, to } => zip_spans(
+                Span::from(from.to_owned()),
+                Span::from(format!("is now known as {to}")),
+                width,
+            )
             .light_green(),
         }
     }
