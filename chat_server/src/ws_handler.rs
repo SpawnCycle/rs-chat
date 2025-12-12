@@ -1,18 +1,21 @@
 use chat_lib::prelude::*;
 use chat_lib::types::Message as ChatMessage;
 use chat_lib::types::Sync;
+use rocket::serde::json::serde_json;
 
-use rocket::Shutdown;
-use rocket::futures::{SinkExt, StreamExt};
-use rocket_ws::result::Error;
-use rocket_ws::{Message, stream::DuplexStream};
+use rocket::{
+    Shutdown,
+    futures::{SinkExt, StreamExt},
+};
+use rocket_ws::{
+    result::Error,
+    {Message, stream::DuplexStream},
+};
 use rustrict::Context;
-use tokio::sync::broadcast;
-use tokio::sync::broadcast::error::RecvError;
+use tokio::sync::broadcast::{self, error::RecvError};
 use uuid::Uuid;
 
-use crate::types::Room;
-use crate::types::{MsgBroadcastReceiver, MsgBroadcastSender};
+use crate::types::{MsgBroadcastReceiver, MsgBroadcastSender, Room};
 
 pub type WsResult<T = ()> = Result<T, rocket_ws::result::Error>;
 
@@ -24,6 +27,7 @@ pub struct WsHandler<'a> {
     id: Uuid,
     ctx: Context,
     sd: &'a mut Shutdown,
+    in_room: bool,
 }
 
 impl<'a> WsHandler<'a> {
@@ -44,10 +48,14 @@ impl<'a> WsHandler<'a> {
             id,
             ctx,
             sd,
+            in_room: true,
         }
     }
 
     pub async fn ws_step(&mut self) -> WsResult<bool> {
+        if !self.in_room {
+            return Ok(true);
+        }
         tokio::select! {
             Some(res) = self.stream.next() => {
                 self.handle_stream(res).await
@@ -76,7 +84,10 @@ impl<'a> WsHandler<'a> {
                     self.exit_room().await;
                     Ok(true)
                 }
-                _ => Ok(true),
+                _ => {
+                    self.close_logged().await;
+                    Ok(true)
+                }
             },
         }
     }
@@ -89,6 +100,16 @@ impl<'a> WsHandler<'a> {
                 }
                 ClientMessage::ChangeUserName(name) => {
                     let mut room = self.room.lock().await;
+                    if name.chars().count() > MAX_NAME_LENGTH {
+                        log::info!(
+                            "User {} tried to change name above the allowed character limit",
+                            self.id
+                        );
+                        self.stream
+                            .send(ServerMessage::NameTooLong(name).as_wsmsg())
+                            .await?;
+                        return Ok(false);
+                    }
                     match room.get_user_mut(&self.id) {
                         Some(user) => {
                             user.set_name(name);
@@ -132,6 +153,7 @@ impl<'a> WsHandler<'a> {
             let _ = self.tx.send(ServerMessage::UserLeft(user.clone()));
         }
         room.remove_user(&self.id);
+        self.in_room = false;
     }
 
     async fn close_socket(&mut self) -> WsResult {

@@ -63,19 +63,3 @@ impl From<Message> for RoomEvent {
         Self::Message(msg)
     }
 }
-
-pub fn message(msg: Message) -> RoomEvent {
-    RoomEvent::Message(msg)
-}
-
-pub fn left(usr: Uuid) -> RoomEvent {
-    RoomEvent::UserLeft(usr)
-}
-
-pub fn joined(usr: Uuid) -> RoomEvent {
-    RoomEvent::UserJoined(usr)
-}
-
-pub fn name_change(from: String, to: String) -> RoomEvent {
-    RoomEvent::UserNameChange { from, to }
-}

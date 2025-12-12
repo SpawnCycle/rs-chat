@@ -29,6 +29,7 @@ pub enum ServerMessage {
     SelfData(User),
     UnsupportedMessage(String),
     InvalidUser(Uuid),
+    NameTooLong(String),
     Banned { duration: Duration, reason: String },
 }
 
@@ -49,15 +50,13 @@ impl ServerMessage {
     pub fn is_user(&self, id: Uuid) -> bool {
         match self {
             ServerMessage::NewMessage(message) => *message.get_author() == id,
-            ServerMessage::AllUsers(_) => false,
             ServerMessage::UserNameChange(user) => *user.get_id() == id,
             ServerMessage::UserJoined(user) => *user.get_id() == id,
             ServerMessage::UserLeft(user) => *user.get_id() == id,
             ServerMessage::UserData(user) => *user.get_id() == id,
             ServerMessage::SelfData(user) => *user.get_id() == id,
-            ServerMessage::UnsupportedMessage(_) => false,
             ServerMessage::InvalidUser(uuid) => *uuid == id,
-            ServerMessage::Banned { .. } => false,
+            _ => false,
         }
     }
 }

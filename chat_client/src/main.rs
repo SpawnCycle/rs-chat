@@ -14,7 +14,7 @@ use consts::TICK_DURATION;
 
 #[tokio::main]
 async fn main() -> Result<(), io::Error> {
-    logging::setup();
+    let _lhandle = logging::setup();
 
     let (e_tx, mut e_rx) = channel::<WsEvent>(64);
     let (a_tx, a_rx) = sync_channel::<WsAction>(64);

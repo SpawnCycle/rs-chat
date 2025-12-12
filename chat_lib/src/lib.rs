@@ -5,6 +5,7 @@ pub mod ratatui_span;
 #[cfg(feature = "ws_message")]
 pub mod ws_message;
 
+pub mod consts;
 pub mod prelude;
 pub mod types;
 

@@ -116,6 +116,10 @@ impl<'a> App<'a> {
     }
 
     pub fn draw(&self, f: &'_ mut Frame) {
+        let longest_name = self
+            .all_users()
+            .iter()
+            .fold(0, |len, u| len.max(u.get_name().len()));
         let chunks = self.layout.split(f.area());
         let top_bar = Paragraph::new(
             self.get_self()
@@ -128,7 +132,10 @@ impl<'a> App<'a> {
             .map(|m| m.as_row(self.all_users()))
             .collect::<Vec<Row>>();
 
-        let table = Table::new(rows, &[Constraint::Max(20), Constraint::Fill(1)]);
+        let table = Table::new(
+            rows,
+            &[Constraint::Max(longest_name as u16), Constraint::Fill(1)],
+        );
 
         if let Some(text_area) = &self.username_field {
             f.render_widget(text_area, chunks[0]);

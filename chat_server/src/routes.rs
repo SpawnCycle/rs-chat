@@ -1,6 +1,7 @@
 use chat_lib::prelude::*;
 use chat_lib::types::Sync;
 
+use names::{Generator, Name};
 use rocket::{Shutdown, State, get};
 use rustrict::Context;
 use uuid::Uuid;
@@ -24,8 +25,11 @@ pub fn ws_root(
 
     ws.channel(move |stream| {
         Box::pin(async move {
+            let name = Generator::with_naming(Name::Numbered)
+                .next()
+                .expect("Generator should not fail");
             let mut sd = sd.clone();
-            let new_user = User::new(id, id.to_string());
+            let new_user = User::new(id, name);
             {
                 room.lock().await.add_user(new_user.clone());
             }

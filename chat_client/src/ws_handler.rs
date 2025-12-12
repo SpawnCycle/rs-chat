@@ -166,11 +166,9 @@ impl WsHandler {
                     let _ = self.tx.send(WsEvent::UserInfo(user)).await;
                     false
                 }
-                ServerMessage::AllUsers(_)
-                | ServerMessage::UnsupportedMessage(_)
-                | ServerMessage::Banned { .. }
-                | ServerMessage::InvalidUser(_) => {
-                    log::error!("Server sending unimplemented data");
+                _ => {
+                    // TODO: implement these
+                    log::error!("Server sending unimplemented data: {:?}", msg);
                     false
                 }
             }
