@@ -5,7 +5,7 @@ use ratatui::{
     layout::{Constraint, Layout},
     widgets::{Block, Borders},
 };
-use std::{num::NonZero, sync::mpsc::SyncSender};
+use std::{num::NonZero, slice, sync::mpsc::SyncSender};
 use tui_textarea::{Input, Key, TextArea};
 use uuid::Uuid;
 
@@ -36,7 +36,7 @@ fn text_area<'a>() -> TextArea<'a> {
 }
 
 #[allow(unused)]
-impl<'a> App<'a> {
+impl App<'_> {
     // Core methods
     pub fn new(tx: SyncSender<WsAction>) -> Self {
         let users = Vec::new();
@@ -106,15 +106,14 @@ impl<'a> App<'a> {
             input => {
                 self.forward_input(input);
             }
-        };
+        }
     }
 
     pub fn draw(&self, f: &'_ mut Frame) {
         let chunks = self.layout.split(f.area());
         let name = self
             .get_self()
-            .map(|u| u.get_name().to_owned())
-            .unwrap_or("Loading...".to_owned());
+            .map_or("Loading...".to_owned(), |u| u.get_name().to_owned());
 
         if let Some(area) = &self.username_field {
             f.render_widget(area, chunks[0]);
@@ -152,7 +151,7 @@ impl<'a> App<'a> {
             }
             WsEvent::Quit => {
                 log::info!("Action: Quit");
-                self.quit()
+                self.quit();
             }
             WsEvent::SelfInfo(user) => {
                 log::info!("Action: SelfInfo");
@@ -198,6 +197,7 @@ impl<'a> App<'a> {
         let _ = self.tx.send(action);
     }
 
+    #[allow(clippy::cast_possible_truncation)]
     fn toggle_offset_mode(&mut self) {
         match self.scoll_offset {
             Some(offset) => match offset {
@@ -229,16 +229,16 @@ impl<'a> App<'a> {
 
     fn accept_text(&mut self) {
         if let Some(text_area) = self.username_field.take() {
-            let text = text_area.lines()[0].clone();
-            if text.trim().chars().count() > 0 {
-                self.send_action(WsAction::ChangeName(text.to_owned()));
+            let text = text_area.lines()[0].trim();
+            if text.chars().count() > 0 {
+                self.send_action(WsAction::ChangeName(text.to_string()));
                 self.send_action(WsAction::RequestSelf);
             }
         } else {
             let text = self.message_field.lines()[0].clone();
             let text = text.trim();
             if text.chars().count() > 0 {
-                self.send_action(WsAction::Message(text.to_owned()));
+                self.send_action(WsAction::Message(text.to_string()));
                 self.message_field = text_area();
             }
         }
@@ -291,7 +291,7 @@ impl<'a> App<'a> {
         self.self_id.and_then(|id| self.get_user(&id))
     }
 
-    pub fn room_events(&self) -> impl DoubleEndedIterator<Item = &RoomEvent> + ExactSizeIterator {
+    pub fn room_events(&self) -> slice::Iter<'_, RoomEvent> {
         self.room_events.iter()
     }
 

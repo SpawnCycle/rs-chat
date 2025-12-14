@@ -14,7 +14,12 @@ pub enum RoomEvent {
 }
 
 pub fn zip_spans<'a>(l: Span<'a>, r: Span<'a>, width: u16) -> Line<'a> {
-    let spaces = ((width as i32) - 1 - (l.width() as i32) - (r.width() as i32).max(1)) as usize;
+    #[allow(
+        clippy::cast_sign_loss,
+        clippy::cast_possible_truncation,
+        clippy::cast_possible_wrap
+    )]
+    let spaces = (i32::from(width) - 1 - (l.width() as i32) - (r.width() as i32).max(1)) as usize;
 
     Line::from_iter([l, (" ".repeat(spaces).into()), r])
 }

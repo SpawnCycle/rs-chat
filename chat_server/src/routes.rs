@@ -33,7 +33,7 @@ pub fn ws_root(
             {
                 room.lock().await.add_user(new_user.clone());
             }
-            let _ = tx.send(ServerMessage::UserJoined(new_user.to_owned()));
+            let _ = tx.send(ServerMessage::UserJoined(new_user.clone()));
 
             let ctx = Context::new();
             let mut loop_ctx = WsHandler::new(rx, tx, stream, room, id, ctx, &mut sd);

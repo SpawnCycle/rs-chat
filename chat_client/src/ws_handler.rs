@@ -111,7 +111,7 @@ impl WsHandler {
                 let _ = self.stream.flush().await;
             }
             WsAction::Quit => {
-                let _ = self.stream.close(Default::default()).await;
+                let _ = self.stream.close(None).await;
                 return true;
             }
             WsAction::ChangeName(name) => {
@@ -175,7 +175,7 @@ impl WsHandler {
                 }
                 _ => {
                     // TODO: implement these
-                    log::error!("Server sending unimplemented data: {:?}", msg);
+                    log::error!("Server sending unimplemented data: {msg:?}");
                     false
                 }
             }

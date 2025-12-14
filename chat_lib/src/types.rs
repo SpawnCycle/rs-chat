@@ -43,18 +43,23 @@ pub enum ClientMessage {
 }
 
 impl ServerMessage {
+    /// # Panics
+    ///
+    /// Panic if there's an error in serde serialization
+    #[must_use]
     pub fn as_json(&self) -> String {
         serde_json::to_string(self).expect("Serialize implementation failed")
     }
 
+    #[must_use]
     pub fn is_user(&self, id: Uuid) -> bool {
         match self {
             ServerMessage::NewMessage(message) => *message.get_author() == id,
-            ServerMessage::UserNameChange(user) => *user.get_id() == id,
-            ServerMessage::UserJoined(user) => *user.get_id() == id,
-            ServerMessage::UserLeft(user) => *user.get_id() == id,
-            ServerMessage::UserData(user) => *user.get_id() == id,
-            ServerMessage::SelfData(user) => *user.get_id() == id,
+            ServerMessage::UserNameChange(user)
+            | ServerMessage::UserJoined(user)
+            | ServerMessage::UserLeft(user)
+            | ServerMessage::UserData(user)
+            | ServerMessage::SelfData(user) => *user.get_id() == id,
             ServerMessage::InvalidUser(uuid) => *uuid == id,
             _ => false,
         }
@@ -62,20 +67,27 @@ impl ServerMessage {
 }
 
 impl ClientMessage {
+    /// # Panics
+    ///
+    /// Panics if there's an error during serde serialization
+    #[must_use]
     pub fn as_json(&self) -> String {
         serde_json::to_string(self).expect("Serialize implementation failed")
     }
 }
 
 impl User {
-    pub fn new(id: Uuid, name: String) -> Self {
+    #[must_use]
+    pub const fn new(id: Uuid, name: String) -> Self {
         Self { id, name }
     }
 
+    #[must_use]
     pub fn get_id(&self) -> &Uuid {
         &self.id
     }
 
+    #[must_use]
     pub fn get_name(&self) -> &str {
         &self.name
     }
@@ -86,14 +98,17 @@ impl User {
 }
 
 impl Message {
-    pub fn new(from: Uuid, content: String) -> Self {
+    #[must_use]
+    pub const fn new(from: Uuid, content: String) -> Self {
         Self { from, content }
     }
 
+    #[must_use]
     pub fn get_content(&self) -> &str {
         &self.content
     }
 
+    #[must_use]
     pub fn get_author(&self) -> &Uuid {
         &self.from
     }

@@ -61,7 +61,7 @@ impl<'a> WsHandler<'a> {
                 self.handle_stream(res).await
             }
             res = self.rx.recv() => self.handle_rx(res).await,
-            _ = self.sd.clone() => {
+            () = self.sd.clone() => {
                 self.close_logged().await;
                 Ok(true)
             }
@@ -158,14 +158,14 @@ impl<'a> WsHandler<'a> {
 
     async fn close_socket(&mut self) -> WsResult {
         self.exit_room().await;
-        self.stream.close(Default::default()).await?;
+        self.stream.close(None).await?;
 
         Ok(())
     }
 
     async fn close_logged(&mut self) {
         let _ = self.close_socket().await.inspect_err(|err| {
-            log::error!("There was an error while trying to close socket: {err}",)
+            log::error!("There was an error while trying to close socket: {err}",);
         });
     }
 
@@ -173,7 +173,7 @@ impl<'a> WsHandler<'a> {
         match res {
             Ok(msg) => {
                 self.stream.send(msg.as_wsmsg()).await?;
-                log::info!("User sent: {:?}", msg);
+                log::info!("User sent: {msg:?}");
                 Ok(false)
             }
             Err(broadcast::error::RecvError::Closed) => {
@@ -195,7 +195,7 @@ impl<'a> WsHandler<'a> {
             Ok(txt) => {
                 let _ = self.tx.send(ServerMessage::NewMessage(ChatMessage::new(
                     self.id,
-                    txt.to_string(),
+                    txt.clone(),
                 )));
             }
             Err(ban) => {

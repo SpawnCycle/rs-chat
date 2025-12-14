@@ -27,9 +27,11 @@ where
 {
     let msg = "Press Ctrl+h to display help menu";
     let name = name.as_ref().to_string();
+    #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
     let spaces =
-        area.width as i32 - (name.chars().count() as i32) - 1 - (msg.chars().count() as i32);
-    let spaces = spaces.max(1);
+        i32::from(area.width) - (name.chars().count() as i32) - 1 - (msg.chars().count() as i32);
+    #[allow(clippy::cast_sign_loss)]
+    let spaces = spaces.max(1) as u32;
     let text = name + " ".repeat(spaces as usize).as_str() + msg;
     let para = Paragraph::new(text).block(top_block());
 

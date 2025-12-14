@@ -11,16 +11,17 @@ A chat server
 workspace = true
 
 [dependencies]
-anyhow = "1.0.100"
 chat_lib = { path = "../chat_lib", features = ["ws_message"] }
+
+anyhow = "1.0.100"
 dirs = "6.0.0"
-log = "0.4.28"
+log = "0.4.29"
 log4rs = { version = "1.4.0", features = ["all_components"] }
 names = "0.14.0"
 rocket = { version = "0.5.1", features = ["json"] }
 rocket_ws = { version = "0.1.1", features = ["tungstenite"] }
-rustrict = "0.7.36"
+rustrict = "0.7.37"
 thiserror = "2.0.17"
-tokio = "1.47.1"
+tokio = "1.48.0"
 tokio-tungstenite = "0.28.0"
-uuid = { version = "1.18.1", features = ["v4", "serde"] }
+uuid = { version = "1.19.0", features = ["v4", "serde"] }

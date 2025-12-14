@@ -14,12 +14,10 @@ pub fn setup() -> Result<log4rs::Handle, anyhow::Error> {
         if cfg!(debug_assertions) {
             PathBuf::from("log/rs_chat_server.log")
         } else {
-            data_dir()
-                .map(|mut dir| {
-                    dir.push("/rs_chat/server.log");
-                    dir
-                })
-                .unwrap_or(PathBuf::from("~/.rs_chat/server.log"))
+            data_dir().map_or(PathBuf::from("~/.rs_chat/server.log"), |mut dir| {
+                dir.push("/rs_chat/server.log");
+                dir
+            })
         }
     };
 

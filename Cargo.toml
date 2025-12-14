@@ -3,6 +3,8 @@ resolver = "3"
 members = ["chat_client", "chat_lib", "chat_server"]
 
 [workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+
 unwrap_used = "deny"
 needless_match = "deny"
 redundant_pattern = "deny"
@@ -10,3 +12,4 @@ redundant_pattern = "deny"
 [profile.release]
 opt-level = 3
 codegen-units = 1
+lto = true
