@@ -41,7 +41,7 @@ impl WsHandler {
         rx: Receiver<WsAction>,
         cfg: AppConfig,
     ) -> Result<Self, tungstenite::Error> {
-        let (stream, _res) = connect_async(cfg.url).await?;
+        let (stream, _res) = connect_async(cfg.url.to_string()).await?;
 
         Ok(Self { stream, tx, rx })
     }

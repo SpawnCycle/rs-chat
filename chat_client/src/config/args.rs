@@ -1,30 +1,36 @@
-use std::str::FromStr;
-
+use anyhow::anyhow;
 use clap::Parser;
-use tokio_tungstenite::tungstenite;
-use tokio_tungstenite::tungstenite::client::IntoClientRequest;
-use tokio_tungstenite::tungstenite::handshake::client::Request;
+use std::str::FromStr;
+use url::Url;
 
 #[derive(Debug, Parser)]
 #[command(version, about)]
 pub struct AppArgs {
+    /// Sets the connection string, has start with either *ws://* or *wss://*
     #[arg(short, long)]
-    pub(super) url: Option<UrlWrapper>,
+    pub(super) url: Option<WsUrl>,
 }
 
+/// Wrapper type to only parse the ws or wss urls
 #[derive(Debug, Clone)]
-pub(super) struct UrlWrapper(Request);
+pub(super) struct WsUrl(pub(super) Url);
 
-impl FromStr for UrlWrapper {
-    type Err = tungstenite::Error;
+impl FromStr for WsUrl {
+    type Err = anyhow::Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(s.into_client_request()?))
+    fn from_str(s: &str) -> anyhow::Result<WsUrl> {
+        let url = Url::from_str(s)?;
+        match url.scheme() {
+            "ws" | "wss" => Ok(Self(url)),
+            _ => Err(anyhow!(
+                "The connection string did not specify ws or wss as the protocol"
+            )),
+        }
     }
 }
 
-impl From<UrlWrapper> for Request {
-    fn from(val: UrlWrapper) -> Self {
-        val.0
+impl From<WsUrl> for Url {
+    fn from(value: WsUrl) -> Self {
+        value.0
     }
 }

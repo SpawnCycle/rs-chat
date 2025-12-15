@@ -17,9 +17,8 @@ use ws_handler::{WsAction, WsEvent, WsHandler};
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let config = config::init();
     let _lhandle = logging::setup();
-
-    let config = config::init()?;
 
     let (e_tx, mut e_rx) = channel::<WsEvent>(CHANNEL_BUFFER_SIZE);
     let (a_tx, a_rx) = sync_channel::<WsAction>(CHANNEL_BUFFER_SIZE);

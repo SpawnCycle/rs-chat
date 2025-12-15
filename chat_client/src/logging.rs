@@ -16,16 +16,16 @@ pub fn setup() -> Result<Handle> {
             PathBuf::from("log/rs_chat_client.log")
         } else {
             data_dir().map_or(PathBuf::from("~/.rs_chat/client.log"), |mut dir| {
-                dir.push("/rs_chat/client.log");
+                dir.push("rs_chat/client.log");
                 dir
             })
         }
     };
 
-    let pattern = PatternEncoder::new("{l} - {d(%Y-%m-%d %H:%M:%S)}: {m}{n}");
+    let file_pattern = PatternEncoder::new("{l} - {d(%Y-%m-%d %H:%M:%S)}: {m}{n}");
 
     let file_logger = FileAppender::builder()
-        .encoder(Box::new(pattern.clone()))
+        .encoder(Box::new(file_pattern.clone()))
         .build(log_path)
         .context("File logger filed to initialize")?;
 

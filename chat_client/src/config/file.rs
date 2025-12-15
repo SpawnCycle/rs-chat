@@ -1,19 +1,19 @@
-use tokio_tungstenite::tungstenite::{client::IntoClientRequest, handshake::client::Request};
+use std::str::FromStr;
+use url::Url;
 
 use super::args::AppArgs;
 
 #[derive(Debug, Clone)]
 pub struct AppConfig {
-    pub url: Request,
+    pub url: Url,
 }
 
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
             // TODO: change it to the url of the pi once this is hosted
-            url: "ws://127.0.0.1:8000/ws/"
-                .into_client_request()
-                .expect("Default connection string should be good"),
+            url: Url::from_str("ws://127.0.0.1:8000/ws/")
+                .expect("Default Connection url to be good"),
         }
     }
 }
@@ -21,7 +21,7 @@ impl Default for AppConfig {
 impl AppConfig {
     pub(super) fn merge(mut self, args: AppArgs) -> Self {
         if let Some(url) = args.url {
-            self.url = url.into();
+            self.url = url.0;
         }
 
         self
