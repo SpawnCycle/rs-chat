@@ -4,6 +4,9 @@ members = ["chat_client", "chat_lib", "chat_server"]
 
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+# cargo = { level = "warn", priority = -1 }
 
 unwrap_used = "deny"
 needless_match = "deny"

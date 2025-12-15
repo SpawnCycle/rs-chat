@@ -5,11 +5,9 @@ use tokio::net::TcpStream;
 use tokio::sync::mpsc::Sender;
 use uuid::Uuid;
 
-use tokio_tungstenite::tungstenite;
-use tokio_tungstenite::tungstenite::client::IntoClientRequest;
-use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async, tungstenite};
 
-use crate::consts::TICK_DURATION;
+use crate::{config::file::AppConfig, consts::TICK_DURATION};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WsEvent {
@@ -38,17 +36,14 @@ pub struct WsHandler {
 }
 
 impl WsHandler {
-    pub async fn new(tx: Sender<WsEvent>, rx: Receiver<WsAction>) -> Self {
-        let url = "ws://127.0.0.1:8000/ws/"
-            .into_client_request()
-            .expect("Could not parse url");
-        let res = connect_async(url).await;
-        if res.is_err() {
-            let _ = tx.send(WsEvent::Quit).await;
-        }
-        let (stream, _) = res.expect("Can't continue without websocket connetion");
+    pub async fn new(
+        tx: Sender<WsEvent>,
+        rx: Receiver<WsAction>,
+        cfg: AppConfig,
+    ) -> Result<Self, tungstenite::Error> {
+        let (stream, _res) = connect_async(cfg.url).await?;
 
-        Self { stream, tx, rx }
+        Ok(Self { stream, tx, rx })
     }
 
     pub async fn step(&mut self) -> bool {

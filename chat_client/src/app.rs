@@ -35,6 +35,19 @@ fn text_area<'a>() -> TextArea<'a> {
     input
 }
 
+fn rel_to_abs(rel: usize, n: u32) -> u32 {
+    #[allow(clippy::cast_possible_truncation)]
+    let rel = (rel as u32).saturating_sub(1);
+    rel - n.min(rel)
+}
+
+fn abs_to_rel(ev: usize, n: u32) -> Option<NonZero<u32>> {
+    #[allow(clippy::cast_possible_truncation)]
+    let abs = (ev as u32).saturating_sub(1);
+    let rel = abs - n.min(abs);
+    NonZero::new(rel)
+}
+
 #[allow(unused)]
 impl App<'_> {
     // Core methods
@@ -81,6 +94,22 @@ impl App<'_> {
                 ..
             } => {
                 self.force_disable_offset();
+            }
+            Input {
+                key: Key::Char('u'),
+                ctrl: true,
+                alt: false,
+                ..
+            } => {
+                self.scroll_up();
+            }
+            Input {
+                key: Key::Char('d'),
+                ctrl: true,
+                alt: false,
+                ..
+            } => {
+                self.scroll_down();
             }
             Input {
                 key: Key::Char('m'),
@@ -190,6 +219,42 @@ impl App<'_> {
             });
     }
 
+    fn scroll_up(&mut self) {
+        match self.scoll_offset {
+            None => {
+                self.scoll_offset = Some(Offset::Relative(
+                    NonZero::new(1).expect("Literal is non zero"),
+                ));
+            }
+            Some(Offset::Absolute(n)) => {
+                let offset = n.saturating_sub(1);
+                self.scoll_offset = Some(Offset::Absolute(offset));
+            }
+            #[allow(clippy::cast_possible_truncation)]
+            Some(Offset::Relative(n)) => {
+                let offset = n.saturating_add(1);
+                self.scoll_offset = NonZero::new(self.room_events().count() as u32)
+                    .map(|ev| offset.min(ev))
+                    .map(Offset::Relative);
+            }
+        }
+    }
+
+    fn scroll_down(&mut self) {
+        match self.scoll_offset {
+            None => {}
+            #[allow(clippy::cast_possible_truncation)]
+            Some(Offset::Absolute(n)) => {
+                let offset = n.saturating_add(1).min(self.room_events().count() as u32);
+                self.scoll_offset = Some(Offset::Absolute(offset));
+            }
+            Some(Offset::Relative(n)) => {
+                let offset = n.get().saturating_sub(1);
+                self.scoll_offset = NonZero::new(offset).map(Offset::Relative);
+            }
+        }
+    }
+
     // Helper methods
 
     // TODO: Handle the errors gracefully
@@ -197,20 +262,20 @@ impl App<'_> {
         let _ = self.tx.send(action);
     }
 
-    #[allow(clippy::cast_possible_truncation)]
     fn toggle_offset_mode(&mut self) {
         match self.scoll_offset {
             Some(offset) => match offset {
                 Offset::Absolute(n) => {
-                    let event_count = self.room_events().count() as u32;
-                    let rel = NonZero::new(event_count - n.min(event_count));
+                    #[allow(clippy::cast_possible_truncation)]
+                    let rel = abs_to_rel(self.room_events().count(), n);
                     match rel {
                         Some(rel) => self.scoll_offset = Some(Offset::Relative(rel)),
                         None => self.scoll_offset = None,
                     }
                 }
                 Offset::Relative(n) => {
-                    let event_count = self.room_events().count() as u32;
+                    #[allow(clippy::cast_possible_truncation)]
+                    let event_count = rel_to_abs(self.room_events().count(), n.get());
                     let abs = event_count - n.get().min(event_count);
                     if abs == 0 {
                         self.scoll_offset = None;
@@ -219,7 +284,12 @@ impl App<'_> {
                     }
                 }
             },
-            None => self.scoll_offset = Some(Offset::Absolute(self.room_events().count() as u32)),
+            #[allow(clippy::cast_possible_truncation)]
+            None => {
+                self.scoll_offset = Some(Offset::Absolute(
+                    (self.room_events().count() as u32).saturating_sub(1),
+                ));
+            }
         }
     }
 

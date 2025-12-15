@@ -58,7 +58,7 @@ pub fn draw_room_events<'a, C>(
             draw_lines(f, area, chats, users);
         }
         Some(Offset::Relative(offset)) => {
-            let chats = chats.rev().skip(offset.get() as usize).take(height);
+            let chats = chats.rev().skip(offset.get() as usize).take(height).rev();
             draw_lines(f, area, chats, users);
         }
     }

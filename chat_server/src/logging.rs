@@ -15,7 +15,7 @@ pub fn setup() -> Result<log4rs::Handle, anyhow::Error> {
             PathBuf::from("log/rs_chat_server.log")
         } else {
             data_dir().map_or(PathBuf::from("~/.rs_chat/server.log"), |mut dir| {
-                dir.push("/rs_chat/server.log");
+                dir.push("rs_chat/server.log");
                 dir
             })
         }

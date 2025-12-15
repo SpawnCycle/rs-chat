@@ -1,31 +1,42 @@
 mod app;
+mod config;
 mod consts;
 mod logging;
 mod render_parts;
 mod room_event;
 mod ws_handler;
 
-use app::App;
+use anyhow::Result;
 use ratatui::crossterm::event;
-use std::{io, sync::mpsc::sync_channel};
+use std::sync::mpsc::sync_channel;
 use tokio::sync::mpsc::channel;
+
+use app::App;
+use consts::{CHANNEL_BUFFER_SIZE, TICK_DURATION};
 use ws_handler::{WsAction, WsEvent, WsHandler};
 
-use consts::TICK_DURATION;
-
 #[tokio::main]
-async fn main() -> Result<(), io::Error> {
+async fn main() -> Result<()> {
     let _lhandle = logging::setup();
 
-    let (e_tx, mut e_rx) = channel::<WsEvent>(64);
-    let (a_tx, a_rx) = sync_channel::<WsAction>(64);
+    let config = config::init()?;
+
+    let (e_tx, mut e_rx) = channel::<WsEvent>(CHANNEL_BUFFER_SIZE);
+    let (a_tx, a_rx) = sync_channel::<WsAction>(CHANNEL_BUFFER_SIZE);
 
     let mut terminal = ratatui::init();
     let mut app = App::new(a_tx);
 
     let ws = tokio::spawn(async move {
+        let config = config.clone();
         log::info!("Websocket handler started");
-        let mut handler = WsHandler::new(e_tx, a_rx).await;
+        let handler = WsHandler::new(e_tx, a_rx, config)
+            .await
+            .inspect_err(|err| log::error!("Fatal error during websocket connection: {err}"));
+        let Ok(mut handler) = handler else {
+            return;
+        };
+
         while !handler.step().await {}
         log::info!("Websocket handler ended");
     });
