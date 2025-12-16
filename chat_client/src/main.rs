@@ -8,8 +8,8 @@ mod ws_handler;
 
 use anyhow::Result;
 use ratatui::crossterm::event;
-use std::sync::mpsc::sync_channel;
-use tokio::sync::mpsc::channel;
+use std::{sync::mpsc::sync_channel, time::Duration};
+use tokio::{sync::mpsc::channel, time::timeout};
 
 use app::App;
 use consts::{CHANNEL_BUFFER_SIZE, TICK_DURATION};
@@ -55,7 +55,12 @@ async fn main() -> Result<()> {
         }
     }
 
-    let _ = tokio::join!(ws);
+    match timeout(Duration::from_secs(3), ws).await {
+        Ok(_) => {}
+        Err(_) => {
+            log::error!("Ws join timed out");
+        }
+    }
 
     ratatui::restore();
 
