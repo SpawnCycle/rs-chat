@@ -139,7 +139,7 @@ impl WsHandler {
 
     async fn handle_message(&mut self, txt: &str) -> bool {
         if let Ok(msg) = serde_json::from_str::<ServerMessage>(txt) {
-            log::info!(
+            log::trace!(
                 "{}",
                 serde_json::to_string(&msg).expect("This can not be bad")
             );

@@ -101,7 +101,7 @@ impl<'a> WsHandler<'a> {
                 ClientMessage::ChangeUserName(name) => {
                     let mut room = self.room.lock().await;
                     if name.chars().count() > MAX_NAME_LENGTH {
-                        log::info!(
+                        log::warn!(
                             "User {} tried to change name above the allowed character limit",
                             self.id
                         );
@@ -173,7 +173,7 @@ impl<'a> WsHandler<'a> {
         match res {
             Ok(msg) => {
                 self.stream.send(msg.as_wsmsg()).await?;
-                log::info!("User sent: {msg:?}");
+                log::trace!("User sent: {msg:?}");
                 Ok(false)
             }
             Err(broadcast::error::RecvError::Closed) => {

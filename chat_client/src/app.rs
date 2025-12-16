@@ -163,31 +163,31 @@ impl App<'_> {
     pub fn handle_event(&mut self, action: &WsEvent) {
         match action {
             WsEvent::UserAdd(user) => {
-                log::info!("Action: Add User");
+                log::trace!("Action: Add User");
                 self.add_user(user);
             }
             WsEvent::UserRemove(uuid) => {
-                log::info!("Action: Remove User");
+                log::trace!("Action: Remove User");
                 self.remove_user(uuid);
             }
             WsEvent::UserChange(user) => {
-                log::info!("Action: Change User");
+                log::trace!("Action: Change User");
                 self.change_user_name(user);
             }
             WsEvent::Message(message) => {
-                log::info!("Action: Add Message");
+                log::trace!("Action: Add Message");
                 self.add_message(message);
             }
             WsEvent::Quit => {
-                log::info!("Action: Quit");
+                log::trace!("Action: Quit");
                 self.quit();
             }
             WsEvent::SelfInfo(user) => {
-                log::info!("Action: SelfInfo");
+                log::trace!("Action: SelfInfo");
                 self.set_self(user);
             }
             WsEvent::UserInfo(user) => {
-                log::info!("Action: UserInfo");
+                log::trace!("Action: UserInfo");
                 self.set_user(user);
             }
         }
