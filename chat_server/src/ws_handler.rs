@@ -3,10 +3,7 @@ use chat_lib::types::Message as ChatMessage;
 use chat_lib::types::Sync;
 use rocket::serde::json::serde_json;
 
-use rocket::{
-    Shutdown,
-    futures::{SinkExt, StreamExt},
-};
+use rocket::futures::{SinkExt, StreamExt};
 use rocket_ws::{
     result::Error,
     {Message, stream::DuplexStream},
@@ -19,18 +16,24 @@ use crate::types::{MsgBroadcastReceiver, MsgBroadcastSender, Room};
 
 pub type WsResult<T = ()> = Result<T, rocket_ws::result::Error>;
 
-pub struct WsHandler<'a> {
+pub struct WsHandler<'a, T>
+where
+    T: Future<Output = ()> + Clone,
+{
     rx: MsgBroadcastReceiver,
     tx: MsgBroadcastSender,
     stream: DuplexStream,
     room: Sync<Room>,
     id: Uuid,
     ctx: Context,
-    sd: &'a mut Shutdown,
+    sd: &'a mut T,
     in_room: bool,
 }
 
-impl<'a> WsHandler<'a> {
+impl<'a, T> WsHandler<'a, T>
+where
+    T: Future<Output = ()> + Clone,
+{
     pub const fn new(
         rx: MsgBroadcastReceiver,
         tx: MsgBroadcastSender,
@@ -38,7 +41,7 @@ impl<'a> WsHandler<'a> {
         room: Sync<Room>,
         id: Uuid,
         ctx: Context,
-        sd: &'a mut Shutdown,
+        sd: &'a mut T,
     ) -> Self {
         Self {
             rx,
