@@ -12,6 +12,7 @@ use rustrict::Context;
 use tokio::sync::broadcast::{self, error::RecvError};
 use uuid::Uuid;
 
+use crate::config::CONTEXT_OPTS;
 use crate::types::{MsgBroadcastReceiver, MsgBroadcastSender, Room};
 
 pub type WsResult<T = ()> = Result<T, rocket_ws::result::Error>;
@@ -193,7 +194,9 @@ where
     }
 
     async fn send_msg(&mut self, txt: &str) -> WsResult {
-        let txt = self.ctx.process(txt.to_string());
+        let txt = self
+            .ctx
+            .process_with_options(txt.to_string(), &CONTEXT_OPTS);
         match txt {
             Ok(txt) => {
                 let _ = self.tx.send(ServerMessage::NewMessage(ChatMessage::new(

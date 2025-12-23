@@ -8,8 +8,9 @@ mod ws_handler;
 
 use anyhow::Result;
 use ratatui::crossterm::event;
-use std::{sync::mpsc::sync_channel, time::Duration};
+use std::sync::mpsc::sync_channel;
 use tokio::{sync::mpsc::channel, time::timeout};
+use tracing::{error, trace};
 
 use app::App;
 use consts::{CHANNEL_BUFFER_SIZE, TICK_DURATION};
@@ -32,16 +33,16 @@ async fn main() -> Result<()> {
 
     let ws = tokio::spawn(async move {
         let config = config.clone();
-        log::trace!("Websocket handler started");
+        trace!("Websocket handler started");
         let handler = WsHandler::new(e_tx, a_rx, config)
             .await
-            .inspect_err(|err| log::error!("Fatal error during websocket connection: {err}"));
+            .inspect_err(|err| error!("Fatal error during websocket connection: {err}"));
         let Ok(mut handler) = handler else {
             return; // Ok to return because handler is not initialized
         };
 
         while !handler.step().await {}
-        log::trace!("Websocket handler ended");
+        trace!("Websocket handler ended");
     });
 
     while !app.should_quit() {
@@ -57,14 +58,11 @@ async fn main() -> Result<()> {
         }
     }
 
-    match timeout(WS_TIMEOUT_DURATION, ws).await {
-        Ok(_) => {}
-        Err(_) => {
-            log::error!("Ws join timed out");
-        }
-    }
-
     ratatui::restore();
+
+    let _ = timeout(WS_TIMEOUT_DURATION / 2, ws).await.inspect_err(|_| {
+        error!("Ws join timed out");
+    });
 
     Ok(())
 }

@@ -30,3 +30,4 @@ toml = "0.9.8"
 clap = { version = "4.5.53", features = ["derive"] }
 url = "2.5.7"
 tui-logger = "0.17.4"
+tracing = { version = "0.1.44", features = ["log", "log-always", "attributes"] }

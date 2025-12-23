@@ -6,6 +6,7 @@ use ratatui::{
     widgets::{Block, Borders},
 };
 use std::{num::NonZero, slice, sync::mpsc::SyncSender};
+use tracing::{Level, instrument, trace};
 use tui_textarea::{Input, Key, TextArea};
 use uuid::Uuid;
 
@@ -138,6 +139,7 @@ impl App<'_> {
         }
     }
 
+    #[instrument(skip_all, level = Level::DEBUG)]
     pub fn draw(&self, f: &'_ mut Frame) {
         let chunks = self.layout.split(f.area());
         let name = self
@@ -160,34 +162,28 @@ impl App<'_> {
         f.render_widget(&self.message_field, chunks[2]);
     }
 
-    pub fn handle_event(&mut self, action: &WsEvent) {
-        match action {
+    #[instrument(skip(self), level = Level::DEBUG)]
+    pub fn handle_event(&mut self, event: &WsEvent) {
+        match event {
             WsEvent::UserAdd(user) => {
-                log::trace!("Action: Add User");
                 self.add_user(user);
             }
             WsEvent::UserRemove(uuid) => {
-                log::trace!("Action: Remove User");
                 self.remove_user(uuid);
             }
             WsEvent::UserChange(user) => {
-                log::trace!("Action: Change User");
                 self.change_user_name(user);
             }
             WsEvent::Message(message) => {
-                log::trace!("Action: Add Message");
                 self.add_message(message);
             }
             WsEvent::Quit => {
-                log::trace!("Action: Quit");
                 self.quit();
             }
             WsEvent::SelfInfo(user) => {
-                log::trace!("Action: SelfInfo");
                 self.set_self(user);
             }
             WsEvent::UserInfo(user) => {
-                log::trace!("Action: UserInfo");
                 self.set_user(user);
             }
         }

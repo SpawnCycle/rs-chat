@@ -10,6 +10,14 @@ use log4rs::{
     encode::pattern::PatternEncoder,
 };
 
+pub const fn log_level() -> LevelFilter {
+    if cfg!(debug_assertions) {
+        LevelFilter::Debug
+    } else {
+        LevelFilter::Info
+    }
+}
+
 pub fn setup() -> Result<Handle> {
     let log_path = {
         if cfg!(debug_assertions) {
@@ -31,11 +39,7 @@ pub fn setup() -> Result<Handle> {
 
     let config = Config::builder()
         .appender(Appender::builder().build("file_logger", Box::new(file_logger)))
-        .build(
-            Root::builder()
-                .appender("file_logger")
-                .build(LevelFilter::Info),
-        )
+        .build(Root::builder().appender("file_logger").build(log_level()))
         .context("Config builder failed to build")?;
 
     let handle = log4rs::init_config(config).context("Config initialization failed")?;
