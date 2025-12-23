@@ -6,7 +6,7 @@ use ratatui::{
     widgets::{Block, Borders},
 };
 use std::{num::NonZero, slice, sync::mpsc::SyncSender};
-use tracing::{Level, instrument, trace};
+use tracing::{Level, instrument};
 use tui_textarea::{Input, Key, TextArea};
 use uuid::Uuid;
 

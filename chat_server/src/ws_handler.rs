@@ -21,12 +21,12 @@ pub struct WsHandler<'a, T>
 where
     T: Future<Output = ()> + Clone,
 {
+    stream: DuplexStream,
+    ctx: Context,
+    id: Uuid,
     rx: MsgBroadcastReceiver,
     tx: MsgBroadcastSender,
-    stream: DuplexStream,
     room: Sync<Room>,
-    id: Uuid,
-    ctx: Context,
     sd: &'a mut T,
     in_room: bool,
 }
@@ -36,21 +36,21 @@ where
     T: Future<Output = ()> + Clone,
 {
     pub const fn new(
+        stream: DuplexStream,
+        ctx: Context,
+        id: Uuid,
         rx: MsgBroadcastReceiver,
         tx: MsgBroadcastSender,
-        stream: DuplexStream,
         room: Sync<Room>,
-        id: Uuid,
-        ctx: Context,
         sd: &'a mut T,
     ) -> Self {
         Self {
+            stream,
+            ctx,
+            id,
             rx,
             tx,
-            stream,
             room,
-            id,
-            ctx,
             sd,
             in_room: true,
         }

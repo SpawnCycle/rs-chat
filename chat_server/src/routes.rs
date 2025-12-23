@@ -36,7 +36,7 @@ pub fn ws_root(
             let _ = tx.send(ServerMessage::UserJoined(new_user.clone()));
 
             let ctx = Context::new();
-            let mut loop_ctx = WsHandler::new(rx, tx, stream, room, id, ctx, &mut sd);
+            let mut loop_ctx = WsHandler::new(stream, ctx, id, rx, tx, room, &mut sd);
 
             loop {
                 if loop_ctx.ws_step().await? {
