@@ -7,8 +7,8 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, broadcast};
 
 use crate::{
-    routes::ws_root,
     types::{BroadCastT, Room},
+    ws::routes::{version, ws_root},
 };
 
 pub struct WsFairing;
@@ -31,6 +31,6 @@ impl Fairing for WsFairing {
         Ok(rocket
             .manage(room)
             .manage(tx)
-            .mount("/ws", routes![ws_root]))
+            .mount("/chat", routes![ws_root, version]))
     }
 }

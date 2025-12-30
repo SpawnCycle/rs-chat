@@ -1,13 +1,11 @@
 mod config;
 mod logging;
-mod routes;
 mod types;
-mod ws_fairing;
-mod ws_handler;
+mod ws;
 
 use rocket::{Build, Rocket};
 
-use crate::ws_fairing::WsFairing;
+use crate::ws::WsFairing;
 
 #[rocket::main]
 async fn main() -> anyhow::Result<()> {

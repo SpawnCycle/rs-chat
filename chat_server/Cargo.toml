@@ -25,3 +25,4 @@ thiserror = "2.0.17"
 tokio = "1.48.0"
 tokio-tungstenite = "0.28.0"
 uuid = { version = "1.19.0", features = ["v4", "serde"] }
+semver = { version = "1.0.27", features = ["serde"] }

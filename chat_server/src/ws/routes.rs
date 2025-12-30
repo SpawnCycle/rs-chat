@@ -2,16 +2,21 @@ use chat_lib::prelude::*;
 use chat_lib::types::Sync;
 
 use names::{Generator, Name};
-use rocket::{Shutdown, State, get};
+use rocket::{Shutdown, State, get, serde::json::Json};
 use rustrict::Context;
 use uuid::Uuid;
 
 use crate::{
     types::{MsgBroadcastSender, Room},
-    ws_handler::WsHandler,
+    ws::handler::WsHandler,
 };
 
-#[get("/")]
+#[get("/version")]
+pub fn version() -> Json<semver::Version> {
+    Json(chat_lib::version())
+}
+
+#[get("/ws")]
 pub fn ws_root(
     ws: rocket_ws::WebSocket,
     bc: &State<MsgBroadcastSender>,
