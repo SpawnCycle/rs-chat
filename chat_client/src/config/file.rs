@@ -12,7 +12,7 @@ impl Default for AppConfig {
     fn default() -> Self {
         Self {
             // TODO: change it to the url of the pi once this is hosted
-            url: Url::from_str("ws://127.0.0.1:8000/ws/")
+            url: Url::from_str("ws://127.0.0.1:8000/chat/ws")
                 .expect("Default Connection url to be good"),
         }
     }

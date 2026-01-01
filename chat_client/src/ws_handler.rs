@@ -2,13 +2,15 @@ use chat_lib::prelude::*;
 use futures::{SinkExt, StreamExt};
 use std::sync::mpsc::{Receiver, TryRecvError};
 use tokio::{net::TcpStream, sync::mpsc::Sender, time::timeout};
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async, tungstenite};
 use tracing::{Level, debug, error, info, instrument, trace, warn};
+use url::Url;
 use uuid::Uuid;
 
-use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async, tungstenite};
-
-use crate::consts::WS_TIMEOUT_DURATION;
-use crate::{config::file::AppConfig, consts::TICK_DURATION};
+use crate::{
+    config::file::AppConfig,
+    consts::{TICK_DURATION, WS_TIMEOUT_DURATION},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WsEvent {
@@ -30,9 +32,11 @@ pub enum WsAction {
     Quit,
 }
 
+type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
+
 #[derive(Debug)]
 pub struct WsHandler {
-    stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
+    stream: WsStream,
     tx: Sender<WsEvent>,
     rx: Receiver<WsAction>,
 }
@@ -42,11 +46,24 @@ impl WsHandler {
         tx: Sender<WsEvent>,
         rx: Receiver<WsAction>,
         cfg: AppConfig,
-    ) -> Result<Self, anyhow::Error> {
-        let tout = timeout(WS_TIMEOUT_DURATION, connect_async(cfg.url.to_string()));
-        let (stream, _res) = tout.await??;
+    ) -> anyhow::Result<Self> {
+        // TODO: Better error reporting/handling instread of just using anyhow
+        let stream = Self::connect(&cfg.url).await;
+        // would inspect_err, but I need to await the sender
+        if let Err(err) = &stream {
+            let _ = tx.send(WsEvent::Quit).await;
+            error!("Could not connect to server websocket: {err}");
+        }
+        let stream = stream?;
 
         Ok(Self { stream, tx, rx })
+    }
+
+    async fn connect(cfg: &Url) -> anyhow::Result<WsStream> {
+        let tout = timeout(WS_TIMEOUT_DURATION, connect_async(cfg.to_string()));
+        let (stream, _res) = tout.await??;
+
+        Ok(stream)
     }
 
     #[instrument(skip_all, level = Level::DEBUG)]
@@ -94,8 +111,19 @@ impl WsHandler {
 
     #[instrument(skip_all, level = Level::DEBUG)]
     async fn process_actions(&mut self) -> bool {
-        let mut recv = self.rx.try_recv();
-        while let Ok(res) = &recv {
+        let mut actions = self.rx.try_iter().collect::<Vec<_>>();
+        if actions.is_empty() {
+            match self.rx.try_recv() {
+                Ok(v) => actions.push(v),
+                Err(TryRecvError::Disconnected) => {
+                    error!("App rx disconnected before sending a program end signal");
+                    return true;
+                }
+                // This is fine
+                Err(TryRecvError::Empty) => {}
+            }
+        }
+        for res in &actions {
             match self.handle_action(res).await {
                 Ok(exit) if exit => {
                     return true;
@@ -106,11 +134,6 @@ impl WsHandler {
                 }
                 _ => {}
             }
-            recv = self.rx.try_recv();
-        }
-        if recv.expect_err("Already checked") == TryRecvError::Disconnected {
-            self.close().await;
-            return true;
         }
         false
     }

@@ -9,3 +9,4 @@
 - [ ] Multi line messages and events
 - [ ] Better ui
 - [ ] Help menu/Other helpful binds
+- [ ] Better documentation

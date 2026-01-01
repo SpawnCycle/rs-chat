@@ -23,7 +23,7 @@ pub fn setup() -> Result<log4rs::Handle, anyhow::Error> {
 
     let log_level = {
         if cfg!(debug_assertions) {
-            LevelFilter::Trace
+            LevelFilter::Debug
         } else {
             LevelFilter::Info
         }
