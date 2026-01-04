@@ -7,24 +7,33 @@ mod room_event;
 mod ws_handler;
 
 use anyhow::Result;
+use log::{error, trace};
 use ratatui::crossterm::event;
 use std::sync::mpsc::sync_channel;
 use tokio::{sync::mpsc::channel, time::timeout};
-use tracing::{error, trace};
 
-use app::App;
-use consts::{CHANNEL_BUFFER_SIZE, TICK_DURATION};
-use ws_handler::{WsAction, WsEvent, WsHandler};
+use crate::{
+    app::App,
+    config::file::AppConfig,
+    consts::{CHANNEL_BUFFER_SIZE, TICK_DURATION, WS_TIMEOUT_DURATION},
+    ws_handler::{WsAction, WsEvent, WsHandler},
+};
 
-use crate::consts::WS_TIMEOUT_DURATION;
-
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     // have to initialize this before logging
     // or it will pollute the logs with the help messages
     let config = config::init();
-    let _lhandle = logging::setup();
+    let _lhandle = logging::setup()?;
 
+    // Unwrapping the runtime initialization so clap can exit without messing with it
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("This is how #[tokio::main] makes the runtime, so if it fails, then it's a very big problem")
+        .block_on(async { app_entry_point(config).await })
+}
+
+async fn app_entry_point(config: AppConfig) -> Result<()> {
     let (e_tx, mut e_rx) = channel::<WsEvent>(CHANNEL_BUFFER_SIZE);
     let (a_tx, a_rx) = sync_channel::<WsAction>(CHANNEL_BUFFER_SIZE);
 
@@ -32,7 +41,7 @@ async fn main() -> Result<()> {
     let mut app = App::new(a_tx);
 
     let ws = tokio::spawn(async move {
-        let config = config.clone();
+        let config = config.web.clone();
         trace!("Websocket handler started");
         let handler = WsHandler::new(e_tx, a_rx, config)
             .await

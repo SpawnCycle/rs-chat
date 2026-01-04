@@ -12,6 +12,15 @@ unwrap_used = "deny"
 needless_match = "deny"
 redundant_pattern = "deny"
 
+[workspace.dependencies]
+tokio = "1.49.0"
+uuid = { version = "1.19.0", features = ["v4", "serde"] }
+semver = { version = "1.0.27", features = ["serde"] }
+thiserror = "2.0.17"
+anyhow = "1.0.100"
+log = "0.4.29"
+serde = "1.0.228"
+
 [profile.release]
 opt-level = 3
 codegen-units = 1

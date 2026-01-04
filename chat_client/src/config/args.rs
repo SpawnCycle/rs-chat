@@ -6,31 +6,32 @@ use url::Url;
 #[derive(Debug, Parser)]
 #[command(version, about)]
 pub struct AppArgs {
-    /// Sets the connection string, has start with either *ws://* or *wss://*
+    /// Sets the base server url all the requests will use
     #[arg(short, long)]
-    pub(super) url: Option<WsUrl>,
+    pub url: Option<ServerUrl>,
+    /// Print the default config to stdout
+    #[arg(short, long)]
+    pub default_config: bool,
 }
 
-/// Wrapper type to only parse the ws or wss urls
+/// Wrapper around Url to check if it's http(s)
 #[derive(Debug, Clone)]
-pub(super) struct WsUrl(pub(super) Url);
+pub struct ServerUrl(pub Url);
 
-impl FromStr for WsUrl {
+impl FromStr for ServerUrl {
     type Err = anyhow::Error;
 
-    fn from_str(s: &str) -> anyhow::Result<WsUrl> {
+    fn from_str(s: &str) -> anyhow::Result<ServerUrl> {
         let url = Url::from_str(s)?;
         match url.scheme() {
-            "ws" | "wss" => Ok(Self(url)),
-            _ => Err(anyhow!(
-                "The connection string did not specify ws or wss as the protocol"
-            )),
+            "http" | "https" => Ok(Self(url)),
+            _ => Err(anyhow!("The connection string not a valid Server url")),
         }
     }
 }
 
-impl From<WsUrl> for Url {
-    fn from(value: WsUrl) -> Self {
+impl From<ServerUrl> for Url {
+    fn from(value: ServerUrl) -> Self {
         value.0
     }
 }

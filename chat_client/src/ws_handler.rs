@@ -1,14 +1,14 @@
 use chat_lib::prelude::*;
 use futures::{SinkExt, StreamExt};
+use log::{debug, error, info, trace, warn};
 use std::sync::mpsc::{Receiver, TryRecvError};
 use tokio::{net::TcpStream, sync::mpsc::Sender, time::timeout};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async, tungstenite};
-use tracing::{Level, debug, error, info, instrument, trace, warn};
 use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    config::file::AppConfig,
+    config::file::WebConfig,
     consts::{TICK_DURATION, WS_TIMEOUT_DURATION},
 };
 
@@ -45,7 +45,7 @@ impl WsHandler {
     pub async fn new(
         tx: Sender<WsEvent>,
         rx: Receiver<WsAction>,
-        cfg: AppConfig,
+        cfg: WebConfig,
     ) -> anyhow::Result<Self> {
         // TODO: Better error reporting/handling instread of just using anyhow
         let stream = Self::connect(&cfg.url).await;
@@ -66,7 +66,6 @@ impl WsHandler {
         Ok(stream)
     }
 
-    #[instrument(skip_all, level = Level::DEBUG)]
     pub async fn step(&mut self) -> bool {
         let res = self.process_actions().await;
         let tout = tokio::time::timeout(TICK_DURATION / 2, self.handle_stream());
@@ -79,12 +78,11 @@ impl WsHandler {
         let _ = self.stream.close(None).await;
     }
 
-    #[instrument(skip_all, level = Level::DEBUG)]
     async fn handle_stream(&mut self) -> bool {
         let msg = self.stream.next().await;
         match msg {
             None => {
-                debug!(?msg, "stream resolved to None");
+                debug!("stream resolved to None: {msg:?}");
                 self.close().await;
                 true
             }
@@ -109,7 +107,6 @@ impl WsHandler {
         }
     }
 
-    #[instrument(skip_all, level = Level::DEBUG)]
     async fn process_actions(&mut self) -> bool {
         let mut actions = self.rx.try_iter().collect::<Vec<_>>();
         if actions.is_empty() {
@@ -138,7 +135,6 @@ impl WsHandler {
         false
     }
 
-    #[instrument(skip(self), level = Level::DEBUG)]
     async fn handle_action(&mut self, msg: &WsAction) -> tungstenite::Result<bool> {
         match msg {
             WsAction::Message(msg) => {
