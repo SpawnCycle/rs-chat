@@ -17,6 +17,7 @@ pub struct Message {
     from: Uuid,
     content: String,
 }
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum ServerMessage {

@@ -8,7 +8,7 @@ use tokio::sync::{Mutex, broadcast};
 
 use crate::{
     types::{BroadCastT, Room},
-    ws::routes::{version, ws_root},
+    ws::routes::{discovery, version, ws_root},
 };
 
 pub struct WsFairing;
@@ -31,6 +31,6 @@ impl Fairing for WsFairing {
         Ok(rocket
             .manage(room)
             .manage(tx)
-            .mount("/chat", routes![ws_root, version]))
+            .mount("/", routes![ws_root, version, discovery]))
     }
 }

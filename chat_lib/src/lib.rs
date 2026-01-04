@@ -6,6 +6,7 @@ pub mod ratatui_span;
 pub mod ws_message;
 
 pub mod consts;
+pub mod discovery;
 pub mod prelude;
 pub mod types;
 
@@ -15,8 +16,18 @@ pub mod types;
 ///
 /// # Panics
 ///
-/// Panics if rust uses bad semver
+/// Panics if it can't parse the semver provided by the crate
 #[must_use]
 pub fn version() -> Version {
     Version::parse(env!("CARGO_PKG_VERSION")).expect("Rust uses unparsable semver?")
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn crate_version() {
+        let _ver = version();
+    }
 }

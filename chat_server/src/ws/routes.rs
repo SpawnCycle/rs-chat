@@ -1,5 +1,5 @@
-use chat_lib::prelude::*;
 use chat_lib::types::Sync;
+use chat_lib::{discovery::Discovery, prelude::*};
 
 use names::{Generator, Name};
 use rocket::{Shutdown, State, get, serde::json::Json};
@@ -14,6 +14,14 @@ use crate::{
 #[get("/version")]
 pub fn version() -> Json<semver::Version> {
     Json(chat_lib::version())
+}
+
+#[get("/discovery")]
+pub fn discovery() -> Json<Discovery> {
+    Json(Discovery {
+        ws: "/ws".to_owned(),
+        version: "/version".to_owned(),
+    })
 }
 
 #[get("/ws")]
