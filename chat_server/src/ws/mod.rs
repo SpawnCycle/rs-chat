@@ -1,3 +1,4 @@
+mod consts;
 mod fairing;
 mod handler;
 mod routes;

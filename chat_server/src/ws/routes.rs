@@ -24,7 +24,7 @@ pub fn discovery() -> Json<Discovery> {
     })
 }
 
-#[get("/ws")]
+#[get("/")]
 pub fn ws_root(
     ws: rocket_ws::WebSocket,
     bc: &State<MsgBroadcastSender>,

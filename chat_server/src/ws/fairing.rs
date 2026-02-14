@@ -8,10 +8,22 @@ use tokio::sync::{Mutex, broadcast};
 
 use crate::{
     types::{BroadCastT, Room},
-    ws::routes::{discovery, version, ws_root},
+    ws::{
+        consts::BROADCAST_BUFFER_SIZE,
+        routes::{discovery, version, ws_root},
+    },
 };
 
-pub struct WsFairing;
+pub struct WsFairing {
+    base: String,
+}
+
+impl WsFairing {
+    #[must_use]
+    pub const fn new(base: String) -> Self {
+        Self { base }
+    }
+}
 
 #[async_trait]
 impl Fairing for WsFairing {
@@ -24,13 +36,14 @@ impl Fairing for WsFairing {
 
     async fn on_ignite(&self, rocket: Rocket<Build>) -> fairing::Result {
         let room = Arc::new(Mutex::new(Room::new()));
-        let (tx, _rx) = broadcast::channel::<BroadCastT>(16);
+        let (tx, _rx) = broadcast::channel::<BroadCastT>(BROADCAST_BUFFER_SIZE);
+        let base = self.base.clone();
 
         log::trace!("Websocket infrastructure initialized");
 
         Ok(rocket
             .manage(room)
             .manage(tx)
-            .mount("/", routes![ws_root, version, discovery]))
+            .mount(base + "/", routes![ws_root, version, discovery]))
     }
 }

@@ -1,9 +1,11 @@
-use chat_lib::prelude::*;
-use chat_lib::types::Message as ChatMessage;
-use chat_lib::types::Sync;
-use rocket::serde::json::serde_json;
-
-use rocket::futures::{SinkExt, StreamExt};
+use chat_lib::{
+    prelude::*,
+    types::{Message as ChatMessage, Sync},
+};
+use rocket::{
+    futures::{SinkExt, StreamExt},
+    serde::json::serde_json,
+};
 use rocket_ws::{
     result::Error,
     {Message, stream::DuplexStream},
@@ -17,9 +19,9 @@ use crate::types::{MsgBroadcastReceiver, MsgBroadcastSender, Room};
 
 pub type WsResult<T = ()> = Result<T, rocket_ws::result::Error>;
 
-pub struct WsHandler<'a, T>
+pub struct WsHandler<'a, F>
 where
-    T: Future<Output = ()> + Clone,
+    F: Future<Output = ()> + Clone,
 {
     stream: DuplexStream,
     ctx: Context,
@@ -27,13 +29,13 @@ where
     rx: MsgBroadcastReceiver,
     tx: MsgBroadcastSender,
     room: Sync<Room>,
-    sd: &'a mut T,
+    sd: &'a mut F,
     in_room: bool,
 }
 
-impl<'a, T> WsHandler<'a, T>
+impl<'a, F> WsHandler<'a, F>
 where
-    T: Future<Output = ()> + Clone,
+    F: Future<Output = ()> + Clone,
 {
     pub const fn new(
         stream: DuplexStream,
@@ -42,7 +44,7 @@ where
         rx: MsgBroadcastReceiver,
         tx: MsgBroadcastSender,
         room: Sync<Room>,
-        sd: &'a mut T,
+        sd: &'a mut F,
     ) -> Self {
         Self {
             stream,

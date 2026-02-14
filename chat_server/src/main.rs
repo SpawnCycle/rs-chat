@@ -1,11 +1,8 @@
-mod config;
 mod logging;
-mod types;
-mod ws;
 
-use rocket::{Build, Rocket};
+use rocket::{Build, Config, Rocket};
 
-use crate::ws::WsFairing;
+use chat_server::ws::WsFairing;
 
 #[rocket::main]
 async fn main() -> anyhow::Result<()> {
@@ -20,5 +17,26 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn rocket() -> Rocket<Build> {
-    rocket::custom(config::rocket()).attach(WsFairing)
+    rocket::custom(rocket_cfg()).attach(WsFairing::new("/api/ws".into()))
+}
+
+// TODO: Actually implement file configs and args
+#[must_use]
+pub fn rocket_cfg() -> Config {
+    Config {
+        cli_colors: false,
+        ..Default::default()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[tokio::test]
+    async fn server_can_launch() -> Result<(), anyhow::Error> {
+        rocket().ignite().await?;
+
+        Ok(())
+    }
 }

@@ -14,10 +14,10 @@ redundant_pattern = "deny"
 
 [workspace.dependencies]
 tokio = { version = "1.49.0", features = ["full"] }
-uuid = { version = "1.19.0", features = ["v4", "serde"] }
+uuid = { version = "1.21.0", features = ["v4", "serde"] }
 semver = { version = "1.0.27", features = ["serde"] }
-thiserror = "2.0.17"
-anyhow = "1.0.100"
+thiserror = "2.0.18"
+anyhow = "1.0.101"
 log = "0.4.29"
 serde = "1.0.228"
 

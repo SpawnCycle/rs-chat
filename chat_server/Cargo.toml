@@ -26,5 +26,5 @@ log4rs = { version = "1.4.0", features = ["all_components"] }
 names = "0.14.0"
 rocket = { version = "0.5.1", features = ["json"] }
 rocket_ws = { version = "0.1.1", features = ["tungstenite"] }
-rustrict = "0.7.37"
+rustrict = "0.7.38"
 tokio-tungstenite = "0.28.0"

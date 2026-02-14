@@ -14,17 +14,26 @@ pub struct Room {
 }
 
 #[allow(unused)]
+impl Default for Room {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Room {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             users: HashMap::new(),
         }
     }
 
+    #[must_use]
     pub fn has_user(&self, id: &Uuid) -> bool {
         self.users.contains_key(id)
     }
 
+    #[must_use]
     pub fn get_user(&self, id: &Uuid) -> Option<&User> {
         self.users.get(id)
     }

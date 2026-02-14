@@ -1,6 +1,8 @@
 # The tui part of the chat
 
-## Planned Features:
+This app is more of a proof of concept rather than a production app, because a crutial depencency (tui-textarea) hasn't gotten an update in 3 years (as of writing)
+
+## (Previously) Planned Features:
 
 - [x] Send messages
 - [x] Name change

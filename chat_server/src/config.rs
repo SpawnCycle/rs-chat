@@ -1,15 +1,6 @@
 use std::{sync::LazyLock, time::Duration};
 
-use rocket::Config;
 use rustrict::{ContextProcessingOptions, ContextRateLimitOptions};
-
-// TODO: Actually implement file configs and args
-pub fn rocket() -> Config {
-    Config {
-        cli_colors: false,
-        ..Default::default()
-    }
-}
 
 pub static CONTEXT_OPTS: LazyLock<ContextProcessingOptions> =
     LazyLock::<ContextProcessingOptions>::new(|| ContextProcessingOptions {
