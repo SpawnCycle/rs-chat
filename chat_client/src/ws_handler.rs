@@ -48,7 +48,12 @@ impl WsHandler {
         cfg: WebConfig,
     ) -> anyhow::Result<Self> {
         // TODO: Better error reporting/handling instread of just using anyhow
-        let stream = Self::connect(&cfg.url).await;
+        let stream = Self::connect(
+            &cfg.url
+                .join("room/global")
+                .expect("The default link should be fine"),
+        )
+        .await;
         // would inspect_err, but I need to await the sender
         if let Err(err) = &stream {
             let _ = tx.send(WsEvent::Quit).await;

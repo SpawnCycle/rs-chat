@@ -3,15 +3,14 @@ use rocket::{
     fairing::{self, Fairing, Info, Kind},
     routes,
 };
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{Mutex, broadcast};
 
-use crate::{
-    types::{BroadCastT, Room},
-    ws::{
-        consts::BROADCAST_BUFFER_SIZE,
-        routes::{discovery, version, ws_root},
-    },
+use crate::ws::{
+    BroadCastT,
+    consts::BROADCAST_BUFFER_SIZE,
+    room::RoomComponents,
+    routes::{about, room_ws, version},
 };
 
 pub struct WsFairing {
@@ -35,15 +34,16 @@ impl Fairing for WsFairing {
     }
 
     async fn on_ignite(&self, rocket: Rocket<Build>) -> fairing::Result {
-        let room = Arc::new(Mutex::new(Room::new()));
+        let rooms = HashMap::<String, Arc<Mutex<RoomComponents>>>::new();
+        let rooms = Arc::new(Mutex::new(rooms));
         let (tx, _rx) = broadcast::channel::<BroadCastT>(BROADCAST_BUFFER_SIZE);
         let base = self.base.clone();
 
         log::trace!("Websocket infrastructure initialized");
 
         Ok(rocket
-            .manage(room)
+            .manage(rooms)
             .manage(tx)
-            .mount(base + "/", routes![ws_root, version, discovery]))
+            .mount(base + "/", routes![room_ws, version, about]))
     }
 }

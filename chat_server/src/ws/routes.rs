@@ -1,4 +1,3 @@
-use chat_lib::types::Sync;
 use chat_lib::{discovery::Discovery, prelude::*};
 
 use names::{Generator, Name};
@@ -6,35 +5,41 @@ use rocket::{Shutdown, State, get, serde::json::Json};
 use rustrict::Context;
 use uuid::Uuid;
 
-use crate::{
-    types::{MsgBroadcastSender, Room},
-    ws::handler::WsHandler,
-};
+use crate::ws::{SyncRoomComponents, handler::WsHandler, room::RoomComponents};
 
 #[get("/version")]
 pub fn version() -> Json<semver::Version> {
     Json(chat_lib::version())
 }
 
-#[get("/discovery")]
-pub fn discovery() -> Json<Discovery> {
+#[get("/about")]
+pub async fn about(rooms: &State<SyncRoomComponents>) -> Json<Discovery> {
+    let rooms = rooms.lock().await.keys().cloned().collect::<Vec<_>>();
     Json(Discovery {
-        ws: "/ws".to_owned(),
         version: "/version".to_owned(),
+        available_rooms: rooms,
     })
 }
 
-#[get("/")]
-pub fn ws_root(
+#[get("/room/<path>")]
+pub async fn room_ws(
+    path: &str,
     ws: rocket_ws::WebSocket,
-    bc: &State<MsgBroadcastSender>,
-    room: &State<Sync<Room>>,
+    rooms: &State<SyncRoomComponents>,
     sd: Shutdown,
 ) -> rocket_ws::Channel<'static> {
+    let path = path.to_string();
+    let rooms = rooms.inner().clone();
+    let room_components = rooms
+        .lock()
+        .await
+        .entry(path.clone())
+        .or_insert(RoomComponents::sync())
+        .clone();
     let id = Uuid::new_v4();
-    let tx = bc.inner().clone();
-    let rx = bc.subscribe();
-    let room = room.inner().clone();
+    let tx = room_components.lock().await.tx.clone();
+    let rx = tx.subscribe();
+    let room = room_components.lock().await.room.clone();
 
     ws.channel(move |stream| {
         Box::pin(async move {
@@ -49,12 +54,21 @@ pub fn ws_root(
             let _ = tx.send(ServerMessage::UserJoined(new_user.clone()));
 
             let ctx = Context::new();
-            let mut loop_ctx = WsHandler::new(stream, ctx, id, rx, tx, room, &mut sd);
+            let mut loop_ctx = WsHandler::new(stream, ctx, id, rx, tx, room.clone(), &mut sd);
 
             loop {
-                if loop_ctx.ws_step().await? {
+                if loop_ctx
+                    .ws_step()
+                    .await
+                    .inspect_err(|err| log::error!("{err}"))
+                    .unwrap_or(true)
+                {
                     break;
                 }
+            }
+
+            if room.lock().await.is_empty() {
+                rooms.lock().await.remove_entry(&path);
             }
 
             Ok(())

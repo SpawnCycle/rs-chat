@@ -15,7 +15,7 @@ use tokio::sync::broadcast::{self, error::RecvError};
 use uuid::Uuid;
 
 use crate::config::CONTEXT_OPTS;
-use crate::types::{MsgBroadcastReceiver, MsgBroadcastSender, Room};
+use crate::ws::{MsgBroadcastReceiver, MsgBroadcastSender, Room};
 
 pub type WsResult<T = ()> = Result<T, rocket_ws::result::Error>;
 

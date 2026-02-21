@@ -1,13 +1,37 @@
-use std::collections::HashMap;
-
-use tokio::sync::broadcast;
+use std::{collections::HashMap, sync::Arc};
 
 use chat_lib::prelude::*;
+use tokio::sync::{Mutex, broadcast};
 use uuid::Uuid;
 
-pub type BroadCastT = ServerMessage;
-pub type MsgBroadcastSender = broadcast::Sender<BroadCastT>;
-pub type MsgBroadcastReceiver = broadcast::Receiver<BroadCastT>;
+use crate::ws::{BroadCastT, MsgBroadcastSender, consts::BROADCAST_BUFFER_SIZE};
+
+pub struct RoomComponents {
+    pub room: Arc<Mutex<Room>>,
+    pub tx: MsgBroadcastSender,
+}
+
+impl Default for RoomComponents {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl RoomComponents {
+    #[must_use]
+    pub fn new() -> Self {
+        let (tx, _rx) = broadcast::channel::<BroadCastT>(BROADCAST_BUFFER_SIZE);
+        Self {
+            room: Arc::new(Mutex::new(Room::new())),
+            tx,
+        }
+    }
+
+    #[must_use]
+    pub fn sync() -> Arc<Mutex<Self>> {
+        Arc::new(Mutex::new(Self::new()))
+    }
+}
 
 pub struct Room {
     users: HashMap<Uuid, User>,
@@ -26,6 +50,11 @@ impl Room {
         Self {
             users: HashMap::new(),
         }
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.users.is_empty()
     }
 
     #[must_use]
