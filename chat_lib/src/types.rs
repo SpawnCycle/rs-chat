@@ -4,7 +4,7 @@ use uuid::Uuid;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 
-use crate::ratatui_span::FindUser;
+// use crate::ratatui_span::FindUser;
 
 pub type Sync<T> = Arc<Mutex<T>>;
 
@@ -114,10 +114,5 @@ impl Message {
     #[must_use]
     pub fn get_author(&self) -> &Uuid {
         &self.from
-    }
-
-    #[must_use]
-    pub fn get_author_user(&self, users: &impl FindUser) -> Option<User> {
-        users.get_user(self.from)
     }
 }

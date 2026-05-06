@@ -14,7 +14,7 @@ Check it out at https://github.com/SpawnCycle/rs-chat
 workspace = true
 
 [dependencies]
-chat_lib = { path = "../chat_lib", features = ["ratatui_span"] }
+chat_lib = { path = "../chat_lib" }
 
 log = { workspace = true }
 tokio = { workspace = true }

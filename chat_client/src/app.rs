@@ -10,8 +10,8 @@ use std::{num::NonZero, slice, sync::mpsc::SyncSender};
 use uuid::Uuid;
 
 use crate::{
+    event::RoomEvent,
     render_parts::{Offset, draw_room_events, draw_top_bar, top_block},
-    room_event::RoomEvent,
     ws_handler::{WsAction, WsEvent},
 };
 

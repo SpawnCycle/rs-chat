@@ -1,7 +1,7 @@
 use semver::Version;
 
-#[cfg(feature = "ratatui_span")]
-pub mod ratatui_span;
+// #[cfg(feature = "ratatui_span")]
+// pub mod ratatui_span;
 #[cfg(feature = "ws_message")]
 pub mod ws_message;
 

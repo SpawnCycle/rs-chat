@@ -294,7 +294,6 @@ name = "chat_lib"
 version = "0.1.0"
 dependencies = [
  "names",
- "ratatui",
  "rocket_ws",
  "semver",
  "serde",

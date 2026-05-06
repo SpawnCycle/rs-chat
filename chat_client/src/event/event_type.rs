@@ -6,23 +6,15 @@ use ratatui::{
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
-pub enum RoomEvent {
-    Message(Message),
-    UserLeft(Uuid),
-    UserJoined(Uuid),
-    UserNameChange { from: String, to: String },
-}
-
-#[derive(Debug, Clone)]
-pub enum EventProperties {
+pub enum EventType {
     /// Notification about an event
     Info { message: String, style: Style },
     /// Any event that involves a user
-    User(UserEventProperties),
+    User(UserEventType),
 }
 
 #[derive(Debug, Clone)]
-pub struct UserEventProperties {
+pub struct UserEventType {
     pub display_as_loading: bool,
     pub user_uuid: Uuid,
     pub user: Option<User>,
@@ -31,7 +23,7 @@ pub struct UserEventProperties {
     pub message_style: Style,
 }
 
-impl UserEventProperties {
+impl UserEventType {
     #[must_use]
     pub fn user_width(&self) -> usize {
         let user_string = match &self.user {
@@ -82,54 +74,5 @@ impl UserEventProperties {
         }
 
         rows
-    }
-}
-
-impl RoomEvent {
-    #[must_use]
-    pub fn properties(&self, users: &[User]) -> EventProperties {
-        match self {
-            RoomEvent::Message(msg) => EventProperties::User(UserEventProperties {
-                display_as_loading: true,
-                user_uuid: *msg.get_author(),
-                user: msg.get_author_user(&users),
-                message: msg.get_content().to_string(),
-                user_style: Style::new().dim(),
-                message_style: Style::new(),
-            }),
-            RoomEvent::UserLeft(uuid) => {
-                let style = Style::new().red();
-                EventProperties::User(UserEventProperties {
-                    // this can't be fetched after the user leaves
-                    display_as_loading: false,
-                    user_uuid: *uuid,
-                    user: users.get_user(uuid),
-                    message: "left the chat".to_string(),
-                    user_style: style,
-                    message_style: style,
-                })
-            }
-            RoomEvent::UserJoined(uuid) => {
-                let style = Style::new().light_green();
-                EventProperties::User(UserEventProperties {
-                    display_as_loading: true,
-                    user_uuid: *uuid,
-                    user: users.get_user(uuid),
-                    message: "joined the chat".to_string(),
-                    user_style: style,
-                    message_style: style,
-                })
-            }
-            RoomEvent::UserNameChange { from, to } => EventProperties::Info {
-                message: format!("{from} is now known as {to}"),
-                style: Style::new().light_green(),
-            },
-        }
-    }
-}
-
-impl From<Message> for RoomEvent {
-    fn from(msg: Message) -> Self {
-        Self::Message(msg)
     }
 }

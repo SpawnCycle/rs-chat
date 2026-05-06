@@ -8,7 +8,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-use crate::room_event::{EventProperties, RoomEvent};
+use crate::event::{EventType, RoomEvent};
 
 #[derive(Clone, Copy, Debug)]
 pub enum Offset {
@@ -89,10 +89,8 @@ fn draw_lines(f: &'_ mut Frame, area: Rect, events: &[&RoomEvent], users: &[User
     let max_user_width = 1 + event_props
         .iter()
         .filter_map(|p| match p {
-            EventProperties::Info { .. } => None,
-            EventProperties::User(user_event_properties) => {
-                Some(user_event_properties.user_width())
-            }
+            EventType::Info { .. } => None,
+            EventType::User(user_event_properties) => Some(user_event_properties.user_width()),
         })
         .max()
         .unwrap_or_default();
@@ -106,14 +104,14 @@ fn draw_lines(f: &'_ mut Frame, area: Rect, events: &[&RoomEvent], users: &[User
 
     for props in &event_props {
         match props {
-            EventProperties::Info { message, style } => {
+            EventType::Info { message, style } => {
                 let message_characters = message.chars().collect::<Vec<_>>();
                 // split the message into collections of characters that fit in the given area
                 for msg in message_characters.chunks(area_width) {
                     rows.push(Line::from(Span::from(String::from_iter(msg)).style(*style)));
                 }
             }
-            EventProperties::User(user_event) => {
+            EventType::User(user_event) => {
                 let event_rows = user_event.build_lines(max_user_width, area_width);
                 rows.extend(event_rows);
             }
