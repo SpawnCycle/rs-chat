@@ -4,6 +4,8 @@ use uuid::Uuid;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 
+use crate::ratatui_span::FindUser;
+
 pub type Sync<T> = Arc<Mutex<T>>;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
@@ -34,7 +36,7 @@ pub enum ServerMessage {
     Banned { duration: Duration, reason: String },
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum ClientMessage {
     ChangeUserName(String),
@@ -112,5 +114,10 @@ impl Message {
     #[must_use]
     pub fn get_author(&self) -> &Uuid {
         &self.from
+    }
+
+    #[must_use]
+    pub fn get_author_user(&self, users: &impl FindUser) -> Option<User> {
+        users.get_user(self.from)
     }
 }

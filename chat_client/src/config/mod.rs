@@ -1,14 +1,15 @@
 pub(crate) mod args;
 pub(crate) mod file;
 
+pub use args::*;
+pub use file::*;
+
 use clap::Parser;
 use dirs::config_dir;
 use std::path::PathBuf;
 use std::{fs, process};
 
-use self::args::AppArgs;
-use self::file::AppConfig;
-
+#[must_use]
 pub fn init() -> AppConfig {
     let args = AppArgs::parse();
     handle_flags(&args);

@@ -10,6 +10,7 @@ use log4rs::{
     encode::pattern::PatternEncoder,
 };
 
+#[must_use]
 pub const fn log_level() -> LevelFilter {
     if cfg!(debug_assertions) {
         LevelFilter::Debug
@@ -18,6 +19,9 @@ pub const fn log_level() -> LevelFilter {
     }
 }
 
+/// # Errors
+///
+/// errors if the configuration was incorrect
 pub fn setup() -> Result<Handle> {
     let log_path = {
         if cfg!(debug_assertions) {

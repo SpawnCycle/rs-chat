@@ -7,7 +7,7 @@ pub trait AsSpan {
 }
 
 pub trait FindUser {
-    fn get_user<T>(&self, id: T) -> Option<&User>
+    fn get_user<T>(&self, id: T) -> Option<User>
     where
         T: AsRef<Uuid>;
 }
@@ -36,11 +36,14 @@ impl AsSpan for User {
     }
 }
 
-impl FindUser for Vec<User> {
-    fn get_user<T>(&self, id: T) -> Option<&User>
+impl<U: AsRef<[User]>> FindUser for U {
+    fn get_user<T>(&self, id: T) -> Option<User>
     where
         T: AsRef<Uuid>,
     {
-        self.iter().find(|u| u.get_id() == id.as_ref())
+        self.as_ref()
+            .iter()
+            .find(|u| u.get_id() == id.as_ref())
+            .cloned()
     }
 }

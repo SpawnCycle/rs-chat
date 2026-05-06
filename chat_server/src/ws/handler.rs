@@ -171,7 +171,7 @@ where
 
     async fn close_logged(&mut self) {
         let _ = self.close_socket().await.inspect_err(|err| {
-            log::error!("There was an error while trying to close socket: {err}",);
+            log::error!("There was an error while trying to close socket: {err}");
         });
     }
 

@@ -13,6 +13,7 @@ use crate::ws::{
     routes::{about, room_ws, version},
 };
 
+#[derive(Debug)]
 pub struct WsFairing {
     base: String,
 }

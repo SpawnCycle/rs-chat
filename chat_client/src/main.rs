@@ -1,21 +1,15 @@
-mod app;
-mod config;
-mod consts;
-mod logging;
-mod render_parts;
-mod room_event;
-mod ws_handler;
-
 use anyhow::Result;
 use log::{error, trace};
 use ratatui::crossterm::event;
 use std::sync::mpsc::sync_channel;
 use tokio::{sync::mpsc::channel, time::timeout};
 
-use crate::{
+use chat_client::{
     app::App,
-    config::file::AppConfig,
+    config,
+    config::AppConfig,
     consts::{CHANNEL_BUFFER_SIZE, TICK_DURATION, WS_TIMEOUT_DURATION},
+    logging,
     ws_handler::{WsAction, WsEvent, WsHandler},
 };
 
@@ -29,7 +23,7 @@ fn main() -> Result<()> {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
-        .expect("This is how #[tokio::main] makes the runtime, so if it fails, then it's a very big problem")
+        .expect("Couldn't initialize async runtime")
         .block_on(async { app_entry_point(config).await })
 }
 
@@ -51,6 +45,7 @@ async fn app_entry_point(config: AppConfig) -> Result<()> {
         };
 
         while !handler.step().await {}
+
         trace!("Websocket handler ended");
     });
 

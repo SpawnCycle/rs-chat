@@ -42,6 +42,13 @@ pub struct WsHandler {
 }
 
 impl WsHandler {
+    /// # Errors
+    ///
+    /// errors if there is a problem during websocket connection
+    ///
+    /// # Panics
+    ///
+    /// panics if there are problems with the default values
     pub async fn new(
         tx: Sender<WsEvent>,
         rx: Receiver<WsAction>,

@@ -5,8 +5,8 @@ use ratatui::{
     layout::{Constraint, Layout},
     widgets::{Block, Borders},
 };
+use ratatui_textarea::{Input, Key, TextArea};
 use std::{num::NonZero, slice, sync::mpsc::SyncSender};
-use tui_textarea::{Input, Key, TextArea};
 use uuid::Uuid;
 
 use crate::{
@@ -15,6 +15,7 @@ use crate::{
     ws_handler::{WsAction, WsEvent},
 };
 
+#[derive(Debug)]
 pub struct App<'a> {
     username_field: Option<TextArea<'a>>,
     message_field: TextArea<'a>,
@@ -51,6 +52,7 @@ fn abs_to_rel(ev: usize, n: u32) -> Option<NonZero<u32>> {
 #[allow(unused)]
 impl App<'_> {
     // Core methods
+    #[must_use]
     pub fn new(tx: SyncSender<WsAction>) -> Self {
         let users = Vec::new();
         Self {

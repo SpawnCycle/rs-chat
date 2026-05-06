@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 use chat_lib::prelude::*;
 use tokio::sync::{Mutex, broadcast};
@@ -9,6 +9,12 @@ use crate::ws::{BroadCastT, MsgBroadcastSender, consts::BROADCAST_BUFFER_SIZE};
 pub struct RoomComponents {
     pub room: Arc<Mutex<Room>>,
     pub tx: MsgBroadcastSender,
+}
+
+impl Debug for RoomComponents {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("RoomComponents")
+    }
 }
 
 impl Default for RoomComponents {
@@ -33,6 +39,7 @@ impl RoomComponents {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Room {
     users: HashMap<Uuid, User>,
 }
