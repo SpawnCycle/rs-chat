@@ -1,8 +1,8 @@
-pub use crate::consts::*;
-pub use crate::types::ClientMessage;
-pub use crate::types::Message;
-pub use crate::types::ServerMessage;
-pub use crate::types::User;
+pub use crate::{
+    consts::*,
+    discovery::Discovery,
+    types::{ClientMessage, Message, ServerMessage, User},
+};
 
 #[allow(unused_imports)]
 #[cfg(feature = "ws_message")]

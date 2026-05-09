@@ -7,16 +7,11 @@ use uuid::Uuid;
 
 use crate::ws::{SyncRoomComponents, handler::WsHandler, room::RoomComponents};
 
-#[get("/version")]
-pub fn version() -> Json<semver::Version> {
-    Json(chat_lib::version())
-}
-
 #[get("/about")]
 pub async fn about(rooms: &State<SyncRoomComponents>) -> Json<Discovery> {
     let rooms = rooms.lock().await.keys().cloned().collect::<Vec<_>>();
     Json(Discovery {
-        version: "/version".to_owned(),
+        version: chat_lib::version().to_string(),
         available_rooms: rooms,
     })
 }

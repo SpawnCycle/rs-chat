@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use chat_lib::prelude::*;
 use ratatui::style::Style;
 use uuid::Uuid;
@@ -10,6 +12,7 @@ pub enum RoomEvent {
     UserLeft(Uuid),
     UserJoined(Uuid),
     UserNameChange { from: String, to: String },
+    Banned { duration: Duration, reason: String },
 }
 
 impl RoomEvent {
@@ -50,6 +53,13 @@ impl RoomEvent {
             RoomEvent::UserNameChange { from, to } => EventType::Info {
                 message: format!("{from} is now known as {to}"),
                 style: Style::new().light_green(),
+            },
+            RoomEvent::Banned { duration, reason } => EventType::Info {
+                message: format!(
+                    "You've been banned for {} seconds: {reason}",
+                    duration.as_secs_f64()
+                ),
+                style: Style::new().red(),
             },
         }
     }

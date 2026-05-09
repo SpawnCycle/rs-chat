@@ -9,7 +9,8 @@ This app is more of a proof of concept rather than a production app, because a c
 - [x] Display events
 - [x] Scrolling (partially done)
 - [x] Config support
-- [ ] Multi line messages and events
+- [x] Multi line messages and events
 - [ ] Better ui
 - [ ] Help menu/Other helpful binds
 - [ ] Better documentation
+- [ ] Ability to connect to multiple rooms (from different servers)

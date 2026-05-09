@@ -1,6 +1,8 @@
 use anyhow::Result;
+use chat_lib::prelude::*;
 use log::{error, trace};
 use ratatui::crossterm::event;
+use reqwest::Client;
 use std::sync::mpsc::sync_channel;
 use tokio::{sync::mpsc::channel, time::timeout};
 
@@ -25,29 +27,49 @@ fn main() -> Result<()> {
         .build()
         .expect("Couldn't initialize async runtime")
         .block_on(async { app_entry_point(config).await })
+        .inspect_err(|err| log::error!("{err}"))
 }
 
 async fn app_entry_point(config: AppConfig) -> Result<()> {
     let (e_tx, mut e_rx) = channel::<WsEvent>(CHANNEL_BUFFER_SIZE);
     let (a_tx, a_rx) = sync_channel::<WsAction>(CHANNEL_BUFFER_SIZE);
 
-    let mut terminal = ratatui::init();
-    let mut app = App::new(a_tx);
+    let client = Client::new();
 
+    let discovery = client
+        .get(
+            config
+                .web
+                .url
+                .join("about")
+                .expect("The url should be correct"),
+        )
+        .send()
+        .await?
+        .json::<Discovery>()
+        .await?;
+
+    log::debug!("{discovery:?}");
+
+    // TODO: move this to a user action
+    let handler = WsHandler::new(e_tx, a_rx, config.web, String::new())
+        .await
+        .inspect_err(|err| error!("Fatal error during websocket connection: {err}"));
     let ws = tokio::spawn(async move {
-        let config = config.web.clone();
         trace!("Websocket handler started");
-        let handler = WsHandler::new(e_tx, a_rx, config)
-            .await
-            .inspect_err(|err| error!("Fatal error during websocket connection: {err}"));
         let Ok(mut handler) = handler else {
             return; // Ok to return because handler is not initialized
         };
 
         while !handler.step().await {}
 
+        handler.close().await;
+
         trace!("Websocket handler ended");
     });
+
+    let mut terminal = ratatui::init();
+    let mut app = App::new(a_tx);
 
     while !app.should_quit() {
         terminal.draw(|f| {

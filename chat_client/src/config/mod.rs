@@ -35,12 +35,12 @@ fn read_config() -> Option<AppConfig> {
         .flatten()
 }
 
-/// Just like clap, exits if it need to do some trivial thing and nothing else
+/// Just like clap, this exits if it need to do some trivial thing and nothing else
 fn handle_flags(cfg: &AppArgs) {
     if cfg.default_config {
         let default_cfg =
             toml::to_string_pretty(&AppConfig::default()).expect("Deserializer shouldn't fail");
-        print!("{default_cfg}");
+        println!("{default_cfg}");
         process::exit(0);
     }
 }

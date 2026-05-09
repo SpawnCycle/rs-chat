@@ -19,15 +19,16 @@ impl Default for AppConfig {
         Self {
             web: WebConfig {
                 // TODO: change it to the url of the pi once this is hosted
-                url: Url::from_str("ws://127.0.0.1:8000/api/ws/")
-                    .expect("Default Connection url to be good"),
+                url: Url::from_str("http://127.0.0.1:8000/api/ws/")
+                    .expect("Default Connection url to be correct"),
             },
         }
     }
 }
 
 impl AppConfig {
-    pub(super) fn merge(mut self, args: AppArgs) -> Self {
+    #[must_use]
+    pub fn merge(mut self, args: AppArgs) -> Self {
         if let Some(url) = args.url {
             self.web.url = url.0;
         }

@@ -14,7 +14,7 @@ pub struct AppArgs {
     pub default_config: bool,
 }
 
-/// Wrapper around Url to check if it's http(s)
+/// Wrapper around Url that checks if it's http(s)
 #[derive(Debug, Clone)]
 pub struct ServerUrl(pub Url);
 
@@ -23,9 +23,12 @@ impl FromStr for ServerUrl {
 
     fn from_str(s: &str) -> anyhow::Result<ServerUrl> {
         let url = Url::from_str(s)?;
-        match url.scheme() {
+        let scheme = url.scheme();
+        match scheme {
             "http" | "https" => Ok(Self(url)),
-            _ => Err(anyhow!("The connection string not a valid Server url")),
+            _ => Err(anyhow!(
+                "The connection string should be http or https, instead got: {scheme}"
+            )),
         }
     }
 }

@@ -10,7 +10,7 @@ use crate::ws::{
     BroadCastT,
     consts::BROADCAST_BUFFER_SIZE,
     room::RoomComponents,
-    routes::{about, room_ws, version},
+    routes::{about, room_ws},
 };
 
 #[derive(Debug)]
@@ -45,6 +45,6 @@ impl Fairing for WsFairing {
         Ok(rocket
             .manage(rooms)
             .manage(tx)
-            .mount(base + "/", routes![room_ws, version, about]))
+            .mount(base + "/", routes![room_ws, about]))
     }
 }

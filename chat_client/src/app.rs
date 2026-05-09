@@ -185,6 +185,12 @@ impl App<'_> {
             WsEvent::UserInfo(user) => {
                 self.set_user(user);
             }
+            WsEvent::Banned(duration, reason) => {
+                self.add_room_event(RoomEvent::Banned {
+                    duration: *duration,
+                    reason: reason.clone(),
+                });
+            }
         }
     }
 
@@ -416,6 +422,10 @@ impl App<'_> {
 
     pub fn add_message(&mut self, msg: &Message) {
         self.room_events.push(msg.clone().into());
+    }
+
+    pub fn add_room_event(&mut self, ev: RoomEvent) {
+        self.room_events.push(ev);
     }
 
     pub fn should_quit(&self) -> bool {
