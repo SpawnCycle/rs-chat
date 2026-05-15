@@ -53,11 +53,7 @@ pub fn draw_room_events<'a, C>(
     match offset {
         None => {
             let chats = chats.rev().take(height).rev().collect::<Vec<_>>();
-            draw_lines(f, area, &chats, users);
-        }
-        Some(Offset::Absolute(offset)) => {
-            let chats = chats.skip(offset as usize).take(height).collect::<Vec<_>>();
-            draw_lines(f, area, &chats, users);
+            draw_lines(f, area, &chats, users, true);
         }
         Some(Offset::Relative(offset)) => {
             let chats = chats
@@ -66,20 +62,31 @@ pub fn draw_room_events<'a, C>(
                 .take(height)
                 .rev()
                 .collect::<Vec<_>>();
-            draw_lines(f, area, &chats, users);
+            draw_lines(f, area, &chats, users, true);
+        }
+        Some(Offset::Absolute(offset)) => {
+            let chats = chats.skip(offset as usize).take(height).collect::<Vec<_>>();
+            draw_lines(f, area, &chats, users, false);
         }
     }
 }
 
 /// processes the events into lines and draws them to the passed in `Frame`,
 /// the events may or may not fit onto the screen
-fn draw_lines(f: &'_ mut Frame, area: Rect, events: &[&RoomEvent], users: &[User]) {
+fn draw_lines(
+    f: &'_ mut Frame,
+    area: Rect,
+    events: &[&RoomEvent],
+    users: &[User],
+    prioritize_last: bool,
+) {
     if area.width == 0 || area.height == 0 {
         return;
     }
     let row_areas = area.rows().collect::<Vec<_>>();
     let mut rows = Vec::<Line>::with_capacity(area.height as usize);
     let area_width = area.width as usize;
+    let area_height = area.height as usize;
 
     let event_props = events
         .iter()
@@ -118,7 +125,13 @@ fn draw_lines(f: &'_ mut Frame, area: Rect, events: &[&RoomEvent], users: &[User
         }
     }
 
-    for (r, a) in rows.iter().zip(row_areas) {
-        f.render_widget(r, a);
+    if prioritize_last {
+        for (r, a) in rows.iter().rev().take(area_height).rev().zip(row_areas) {
+            f.render_widget(r, a);
+        }
+    } else {
+        for (r, a) in rows.iter().zip(row_areas) {
+            f.render_widget(r, a);
+        }
     }
 }

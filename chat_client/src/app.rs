@@ -1,5 +1,3 @@
-use std::fmt;
-
 use chat_lib::prelude::*;
 use ratatui::{
     Frame,
@@ -8,7 +6,7 @@ use ratatui::{
     widgets::{Block, Borders},
 };
 use ratatui_textarea::{Input, Key, TextArea};
-use std::{num::NonZero, slice, sync::mpsc::SyncSender};
+use std::{fmt, num::NonZero, slice, sync::mpsc::SyncSender};
 use tui_logger::{TuiWidgetEvent, TuiWidgetState};
 use uuid::Uuid;
 

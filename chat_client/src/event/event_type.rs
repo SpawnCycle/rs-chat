@@ -44,13 +44,17 @@ impl UserEventType {
             None if self.display_as_loading => "Loading...".to_string(),
             None => self.user_uuid.to_string(),
         };
-        let user_string_width = user_string.chars().count();
         let message_chars = self.message.chars().collect::<Vec<_>>();
 
         // the full width of the message
-        let event_width = 1 + user_string_width + message_chars.len();
-        let full_message_width = event_width - max_user_width;
-        let message_width = full_message_width.min(overall_width - max_user_width);
+        let event_width = 1 + max_user_width + message_chars.len();
+        let full_message_width = event_width.saturating_sub(max_user_width);
+        let message_width = full_message_width.min(overall_width.saturating_sub(max_user_width));
+
+        if message_width == 0 {
+            // area too small to build anything
+            return Vec::new();
+        }
 
         let mut message_parts = message_chars.chunks(message_width);
 
