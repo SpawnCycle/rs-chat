@@ -19,7 +19,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Build project
-        run: cargo build --verbose --workspace
+        run: cargo build --verbose --all
   clippy:
     runs-on: ubuntu-latest
     steps:

@@ -1,3 +1,5 @@
+use std::fmt;
+
 use chat_lib::prelude::*;
 use ratatui::{
     Frame,
@@ -7,15 +9,16 @@ use ratatui::{
 };
 use ratatui_textarea::{Input, Key, TextArea};
 use std::{num::NonZero, slice, sync::mpsc::SyncSender};
+use tui_logger::{TuiWidgetEvent, TuiWidgetState};
 use uuid::Uuid;
 
 use crate::{
+    chat::{Offset, draw_room_events, draw_top_bar, top_block},
     event::RoomEvent,
-    render_parts::{Offset, draw_room_events, draw_top_bar, top_block},
+    logs::draw_logs,
     ws_handler::{WsAction, WsEvent},
 };
 
-#[derive(Debug)]
 pub struct App<'a> {
     username_field: Option<TextArea<'a>>,
     message_field: TextArea<'a>,
@@ -26,6 +29,8 @@ pub struct App<'a> {
     users: Vec<User>,
     tx: SyncSender<WsAction>,
     scoll_offset: Option<Offset>,
+    checking_logs: bool,
+    logger_state: TuiWidgetState,
 }
 
 fn text_area<'a>() -> TextArea<'a> {
@@ -52,6 +57,7 @@ fn abs_to_rel(ev: usize, n: u32) -> Option<NonZero<u32>> {
 #[allow(unused)]
 impl App<'_> {
     // Core methods
+
     #[must_use]
     pub fn new(tx: SyncSender<WsAction>) -> Self {
         let users = Vec::new();
@@ -69,10 +75,98 @@ impl App<'_> {
             self_id: None,
             username_field: None,
             scoll_offset: None,
+            checking_logs: false,
+            logger_state: TuiWidgetState::default(),
+        }
+    }
+    pub fn handle_input(&mut self, e: Event) {
+        if self.checking_logs {
+            self.handle_log_input(e);
+        } else {
+            self.handle_chat_input(e);
         }
     }
 
-    pub fn handle_input(&mut self, e: Event) {
+    pub fn handle_log_input(&mut self, e: Event) {
+        match e.into() {
+            Input {
+                key: Key::Char('l'),
+                ctrl: true,
+                ..
+            } => {
+                self.toggle_logs();
+            }
+            Input {
+                key: Key::Char(' '),
+                ..
+            } => {
+                self.logger_state.transition(TuiWidgetEvent::SpaceKey);
+            }
+            Input { key: Key::Esc, .. } => {
+                self.logger_state.transition(TuiWidgetEvent::EscapeKey);
+            }
+            Input {
+                key: Key::PageUp, ..
+            } => {
+                self.logger_state.transition(TuiWidgetEvent::PrevPageKey);
+            }
+            Input {
+                key: Key::PageDown, ..
+            } => {
+                self.logger_state.transition(TuiWidgetEvent::NextPageKey);
+            }
+            Input { key: Key::Up, .. } => {
+                self.logger_state.transition(TuiWidgetEvent::UpKey);
+            }
+            Input { key: Key::Down, .. } => {
+                self.logger_state.transition(TuiWidgetEvent::DownKey);
+            }
+            Input { key: Key::Left, .. } => {
+                self.logger_state.transition(TuiWidgetEvent::LeftKey);
+            }
+            Input {
+                key: Key::Right, ..
+            } => {
+                self.logger_state.transition(TuiWidgetEvent::RightKey);
+            }
+            Input {
+                key: Key::Char('+'),
+                ..
+            } => {
+                self.logger_state.transition(TuiWidgetEvent::PlusKey);
+            }
+            Input {
+                key: Key::Char('-'),
+                ..
+            } => {
+                self.logger_state.transition(TuiWidgetEvent::MinusKey);
+            }
+            Input {
+                key: Key::Char('h'),
+                ..
+            } => {
+                self.logger_state.transition(TuiWidgetEvent::HideKey);
+            }
+            Input {
+                key: Key::Char('f'),
+                ..
+            } => {
+                self.logger_state.transition(TuiWidgetEvent::FocusKey);
+            }
+            Input {
+                key: Key::Char('q'),
+                ctrl: true,
+                ..
+            } => {
+                self.quit();
+            }
+            _ => {
+                // TODO: some other controls?
+            }
+        }
+    }
+
+    pub fn handle_chat_input(&mut self, e: Event) {
         match e.into() {
             Input {
                 key: Key::Char('n'),
@@ -134,6 +228,13 @@ impl App<'_> {
             } => {
                 self.quit();
             }
+            Input {
+                key: Key::Char('l'),
+                ctrl: true,
+                ..
+            } => {
+                self.toggle_logs();
+            }
             input => {
                 self.forward_input(input);
             }
@@ -141,6 +242,14 @@ impl App<'_> {
     }
 
     pub fn draw(&self, f: &'_ mut Frame) {
+        if self.checking_logs {
+            draw_logs(f, f.area(), &self.logger_state);
+        } else {
+            self.draw_chat(f);
+        }
+    }
+
+    fn draw_chat(&self, f: &'_ mut Frame) {
         let chunks = self.layout.split(f.area());
         let name = self
             .get_self()
@@ -351,6 +460,10 @@ impl App<'_> {
         }
     }
 
+    fn toggle_logs(&mut self) {
+        self.checking_logs = !self.checking_logs;
+    }
+
     pub fn quit(&mut self) {
         self.should_quit = true;
         let _ = self.tx.send(WsAction::Quit);
@@ -430,5 +543,23 @@ impl App<'_> {
 
     pub fn should_quit(&self) -> bool {
         self.should_quit
+    }
+}
+
+impl fmt::Debug for App<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("App")
+            .field("username_field", &self.username_field)
+            .field("message_field", &self.message_field)
+            .field("room_events", &self.room_events)
+            .field("should_quit", &self.should_quit)
+            .field("self_id", &self.self_id)
+            .field("layout", &self.layout)
+            .field("users", &self.users)
+            .field("tx", &self.tx)
+            .field("scoll_offset", &self.scoll_offset)
+            .field("checking_logs", &self.checking_logs)
+            .field("logger_state", &"TuiWidgetState")
+            .finish()
     }
 }

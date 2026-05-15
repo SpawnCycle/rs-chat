@@ -1,5 +1,12 @@
+#![allow(
+    clippy::print_stderr,
+    clippy::print_stdout,
+    reason = "This runs before the logger is initialized"
+)]
+
 pub(crate) mod args;
 pub(crate) mod file;
+pub mod logging;
 
 pub use args::*;
 pub use file::*;

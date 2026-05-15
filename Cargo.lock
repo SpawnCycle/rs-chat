@@ -306,7 +306,6 @@ dependencies = [
  "dirs",
  "futures",
  "log",
- "log4rs",
  "ratatui",
  "ratatui-textarea",
  "reqwest",

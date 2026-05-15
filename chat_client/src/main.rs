@@ -1,6 +1,5 @@
 use anyhow::Result;
 use chat_lib::prelude::*;
-use log::{error, trace};
 use ratatui::crossterm::event;
 use reqwest::Client;
 use std::sync::mpsc::sync_channel;
@@ -8,10 +7,8 @@ use tokio::{sync::mpsc::channel, time::timeout};
 
 use chat_client::{
     app::App,
-    config,
-    config::AppConfig,
+    config::{self, AppConfig, logging},
     consts::{CHANNEL_BUFFER_SIZE, TICK_DURATION, WS_TIMEOUT_DURATION},
-    logging,
     ws_handler::{WsAction, WsEvent, WsHandler},
 };
 
@@ -19,7 +16,7 @@ fn main() -> Result<()> {
     // have to initialize this before logging
     // or it will pollute the logs with the help messages
     let config = config::init();
-    let _lhandle = logging::setup()?;
+    logging::setup()?;
 
     // Unwrapping the runtime initialization so clap can exit without messing with it
     tokio::runtime::Builder::new_multi_thread()
@@ -51,12 +48,12 @@ async fn app_entry_point(config: AppConfig) -> Result<()> {
 
     log::debug!("{discovery:?}");
 
-    // TODO: move this to a user action
-    let handler = WsHandler::new(e_tx, a_rx, config.web, String::new())
-        .await
-        .inspect_err(|err| error!("Fatal error during websocket connection: {err}"));
     let ws = tokio::spawn(async move {
-        trace!("Websocket handler started");
+        // TODO: move this to a user action
+        let handler = WsHandler::new(e_tx, a_rx, config.web, String::new())
+            .await
+            .inspect_err(|err| log::error!("Fatal error during websocket connection: {err}"));
+        log::trace!("Websocket handler started");
         let Ok(mut handler) = handler else {
             return; // Ok to return because handler is not initialized
         };
@@ -65,7 +62,7 @@ async fn app_entry_point(config: AppConfig) -> Result<()> {
 
         handler.close().await;
 
-        trace!("Websocket handler ended");
+        log::trace!("Websocket handler ended");
     });
 
     let mut terminal = ratatui::init();
@@ -87,7 +84,7 @@ async fn app_entry_point(config: AppConfig) -> Result<()> {
     ratatui::restore();
 
     let _ = timeout(WS_TIMEOUT_DURATION / 2, ws).await.inspect_err(|_| {
-        error!("Ws join timed out");
+        log::error!("Ws join timed out");
     });
 
     Ok(())
