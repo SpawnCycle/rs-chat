@@ -1,18 +1,14 @@
-use anyhow::Result;
-use chat_lib::prelude::*;
+use anyhow::Context;
 use ratatui::crossterm::event;
-use reqwest::Client;
-use std::sync::mpsc::sync_channel;
-use tokio::{sync::mpsc::channel, time::timeout};
+use tokio::time::timeout;
 
 use chat_client::{
     app::App,
     config::{self, AppConfig, logging},
-    consts::{CHANNEL_BUFFER_SIZE, TICK_DURATION, WS_TIMEOUT_DURATION},
-    ws_handler::{WsAction, WsEvent, WsHandler},
+    consts::{TICK_DURATION, WS_TIMEOUT_DURATION},
 };
 
-fn main() -> Result<()> {
+fn main() -> anyhow::Result<()> {
     // have to initialize this before logging
     // or it will pollute the logs with the help messages
     let config = config::init();
@@ -22,51 +18,16 @@ fn main() -> Result<()> {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
-        .expect("Couldn't initialize async runtime")
+        .context("Couldn't initialize async runtime")?
         .block_on(async { app_entry_point(config).await })
         .inspect_err(|err| log::error!("{err}"))
 }
 
-async fn app_entry_point(config: AppConfig) -> Result<()> {
-    let (e_tx, mut e_rx) = channel::<WsEvent>(CHANNEL_BUFFER_SIZE);
-    let (a_tx, a_rx) = sync_channel::<WsAction>(CHANNEL_BUFFER_SIZE);
-
-    let client = Client::new();
-
-    let discovery = client
-        .get(
-            config
-                .web
-                .url
-                .join("about")
-                .expect("The url should be correct"),
-        )
-        .send()
-        .await?
-        .json::<Discovery>()
-        .await?;
-
-    log::debug!("{discovery:?}");
-
-    let ws = tokio::spawn(async move {
-        // TODO: move this to a user action
-        let handler = WsHandler::new(e_tx, a_rx, config.web, String::new())
-            .await
-            .inspect_err(|err| log::error!("Fatal error during websocket connection: {err}"));
-        log::trace!("Websocket handler started");
-        let Ok(mut handler) = handler else {
-            return; // Ok to return because handler is not initialized
-        };
-
-        while !handler.step().await {}
-
-        handler.close().await;
-
-        log::trace!("Websocket handler ended");
-    });
+async fn app_entry_point(config: AppConfig) -> anyhow::Result<()> {
+    let mut app = App::new(config);
+    let ws = app.join_room("global").await?;
 
     let mut terminal = ratatui::init();
-    let mut app = App::new(a_tx);
 
     while !app.should_quit() {
         terminal.draw(|f| {
@@ -76,9 +37,7 @@ async fn app_entry_point(config: AppConfig) -> Result<()> {
             app.handle_input(event::read().expect("Event read should succeed"));
         }
         app.send_sync_requests();
-        while let Ok(action) = e_rx.try_recv() {
-            app.handle_event(&action);
-        }
+        app.poll_room_events();
     }
 
     ratatui::restore();

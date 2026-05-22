@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use anyhow::{Context, anyhow};
 use chat_lib::prelude::*;
 use futures::{SinkExt, StreamExt};
 use std::{
@@ -74,7 +74,7 @@ impl WsHandler {
         tx: Sender<WsEvent>,
         rx: Receiver<WsAction>,
         cfg: WebConfig,
-        _room: String,
+        room: String,
     ) -> anyhow::Result<Self> {
         // TODO: Better error reporting/handling instread of just using anyhow
         let mut url = cfg.url.clone();
@@ -82,8 +82,8 @@ impl WsHandler {
         url.set_scheme("ws").expect("The url should be correct");
 
         let stream = Self::connect_websocket(
-            &url.join("room/global")
-                .expect("The default link should be correct"),
+            &url.join(&format!("room/{room}"))
+                .context("Couldn't parse url string")?,
         )
         .await;
 
@@ -222,7 +222,7 @@ impl WsHandler {
         if let Ok(msg) = serde_json::from_str::<ServerMessage>(txt) {
             log::trace!(
                 "{}",
-                serde_json::to_string(&msg).expect("This can not be bad")
+                serde_json::to_string(&msg).expect("Couldn't re-serialize message")
             );
             match msg {
                 ServerMessage::NewMessage(message) => {

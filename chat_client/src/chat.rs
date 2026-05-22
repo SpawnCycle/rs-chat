@@ -1,6 +1,5 @@
 use std::num::NonZero;
 
-use chat_lib::types::User;
 use ratatui::{
     Frame,
     layout::Rect,
@@ -8,7 +7,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-use crate::event::{EventType, RoomEvent};
+use crate::event::{EventType, RoomEvent, UserLocator};
 
 #[derive(Clone, Copy, Debug)]
 pub enum Offset {
@@ -40,15 +39,14 @@ where
     f.render_widget(para, area);
 }
 
-pub fn draw_room_events<'a, C>(
+pub fn draw_room_events(
     f: &'_ mut Frame,
     area: Rect,
-    chats: C,
-    users: &[User],
+    chats: &[RoomEvent],
+    users: &impl UserLocator,
     offset: Option<Offset>,
-) where
-    C: DoubleEndedIterator<Item = &'a RoomEvent> + ExactSizeIterator,
-{
+) {
+    let chats = chats.iter();
     let height = area.height as usize;
     match offset {
         None => {
@@ -77,7 +75,7 @@ fn draw_lines(
     f: &'_ mut Frame,
     area: Rect,
     events: &[&RoomEvent],
-    users: &[User],
+    users: &impl UserLocator,
     prioritize_last: bool,
 ) {
     if area.width == 0 || area.height == 0 {

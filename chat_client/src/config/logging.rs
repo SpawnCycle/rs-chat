@@ -7,9 +7,20 @@ use log::LevelFilter;
 #[must_use]
 pub const fn log_level() -> LevelFilter {
     if cfg!(debug_assertions) {
-        LevelFilter::Debug
+        LevelFilter::Trace
     } else {
         LevelFilter::Info
+    }
+}
+
+pub(crate) fn log_path() -> PathBuf {
+    if cfg!(debug_assertions) {
+        PathBuf::from("log/rs_chat_client.log")
+    } else {
+        data_dir().map_or(PathBuf::from("~/.rs_chat/client.log"), |mut dir| {
+            dir.push("rs_chat/client.log");
+            dir
+        })
     }
 }
 
@@ -19,16 +30,7 @@ pub const fn log_level() -> LevelFilter {
 /// or if the `HOME` folder contains a character that's not utf8 encoded
 pub fn setup() -> Result<()> {
     // `log4rs` is better, but I couldn't get `tui_logger` to work with it, very sad
-    let log_path = {
-        if cfg!(debug_assertions) {
-            PathBuf::from("log/rs_chat_client.log")
-        } else {
-            data_dir().map_or(PathBuf::from("~/.rs_chat/client.log"), |mut dir| {
-                dir.push("rs_chat/client.log");
-                dir
-            })
-        }
-    };
+    let log_path = log_path();
 
     tui_logger::init_logger(LevelFilter::Trace)?;
     tui_logger::set_default_level(log_level());
@@ -36,7 +38,8 @@ pub fn setup() -> Result<()> {
         log_path
             .to_str()
             .context("Path name contains non-utf8 character(s)")?,
-    );
+    )
+    .output_file(false);
     tui_logger::set_log_file(tui_file);
 
     Ok(())

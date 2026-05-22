@@ -12,6 +12,9 @@ pub struct AppArgs {
     /// Print the default config to stdout
     #[arg(short, long)]
     pub default_config: bool,
+    /// Deletes the log file before starting the client
+    #[arg(short, long)]
+    pub clean: bool,
 }
 
 /// Wrapper around Url that checks if it's http(s)

@@ -13,8 +13,7 @@ pub use file::*;
 
 use clap::Parser;
 use dirs::config_dir;
-use std::path::PathBuf;
-use std::{fs, process};
+use std::{fs, path::PathBuf, process};
 
 #[must_use]
 pub fn init() -> AppConfig {
@@ -35,19 +34,25 @@ fn read_config() -> Option<AppConfig> {
         .map(|s| {
             toml::from_str(&s)
                 // log is not initialized at this point so this is fine
-                .inspect_err(|err| eprintln!("Error during config parse: {err}"))
+                .inspect_err(|err| eprintln!("Couldn't parse config: {err}"))
                 .ok()
         })
         .ok()
         .flatten()
 }
 
-/// Just like clap, this exits if it need to do some trivial thing and nothing else
+/// Executes the trivial things and possibly exits
 fn handle_flags(cfg: &AppArgs) {
     if cfg.default_config {
         let default_cfg =
             toml::to_string_pretty(&AppConfig::default()).expect("Deserializer shouldn't fail");
         println!("{default_cfg}");
         process::exit(0);
+    }
+
+    if cfg.clean {
+        let log_file = logging::log_path();
+        let _ = fs::remove_file(log_file)
+            .inspect_err(|err| eprintln!("Couldn't delete log file: {err}"));
     }
 }

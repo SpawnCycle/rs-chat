@@ -1,4 +1,4 @@
-use chat_lib::prelude::*;
+use chat_lib::discovery::Discovery;
 use ratatui::{
     Frame,
     crossterm::event::Event,
@@ -6,28 +6,29 @@ use ratatui::{
     widgets::{Block, Borders},
 };
 use ratatui_textarea::{Input, Key, TextArea};
-use std::{fmt, num::NonZero, slice, sync::mpsc::SyncSender};
+use reqwest::Client;
+use std::{collections::HashMap, sync::mpsc::sync_channel};
+use tokio::sync::mpsc::channel;
 use tui_logger::{TuiWidgetEvent, TuiWidgetState};
-use uuid::Uuid;
 
 use crate::{
-    chat::{Offset, draw_room_events, draw_top_bar, top_block},
-    event::RoomEvent,
+    chat::{draw_room_events, draw_top_bar, top_block},
+    config::AppConfig,
+    consts::CHANNEL_BUFFER_SIZE,
     logs::draw_logs,
-    ws_handler::{WsAction, WsEvent},
+    room::Room,
+    ws_handler::{WsAction, WsEvent, WsHandler},
 };
 
 pub struct App<'a> {
     username_field: Option<TextArea<'a>>,
     message_field: TextArea<'a>,
-    room_events: Vec<RoomEvent>,
     should_quit: bool,
-    self_id: Option<Uuid>,
     layout: Layout,
-    users: Vec<User>,
-    tx: SyncSender<WsAction>,
-    scoll_offset: Option<Offset>,
     checking_logs: bool,
+    rooms: HashMap<String, Room>,
+    current_room_name: Option<String>,
+    config: AppConfig,
     logger_state: TuiWidgetState,
 }
 
@@ -39,44 +40,27 @@ fn text_area<'a>() -> TextArea<'a> {
     input
 }
 
-fn rel_to_abs(rel: usize, n: u32) -> u32 {
-    #[allow(clippy::cast_possible_truncation)]
-    let rel = (rel as u32).saturating_sub(1);
-    rel - n.min(rel)
-}
-
-fn abs_to_rel(ev: usize, n: u32) -> Option<NonZero<u32>> {
-    #[allow(clippy::cast_possible_truncation)]
-    let abs = (ev as u32).saturating_sub(1);
-    let rel = abs - n.min(abs);
-    NonZero::new(rel)
-}
-
 #[allow(unused)]
 impl App<'_> {
-    // Core methods
-
     #[must_use]
-    pub fn new(tx: SyncSender<WsAction>) -> Self {
-        let users = Vec::new();
+    pub fn new(config: AppConfig) -> Self {
         Self {
-            tx,
-            users,
+            rooms: HashMap::new(),
+            current_room_name: None,
             should_quit: false,
-            room_events: vec![],
             message_field: text_area(),
             layout: Layout::default().constraints([
                 Constraint::Length(2),
                 Constraint::Min(1),
                 Constraint::Length(3),
             ]),
-            self_id: None,
             username_field: None,
-            scoll_offset: None,
             checking_logs: false,
             logger_state: TuiWidgetState::default(),
+            config,
         }
     }
+
     pub fn handle_input(&mut self, e: Event) {
         if self.checking_logs {
             self.handle_log_input(e);
@@ -217,7 +201,7 @@ impl App<'_> {
                 self.accept_text();
             }
             Input { key: Key::Esc, .. } => {
-                self.exit_text_area();
+                self.exit_username_text_area();
             }
             Input {
                 key: Key::Char('q'),
@@ -239,6 +223,67 @@ impl App<'_> {
         }
     }
 
+    /// # Errors
+    ///
+    /// This function returns the Errors produced by `reqwest` client
+    ///
+    /// # Panics
+    ///
+    /// This function panics if the url in the config is incorrect
+    pub async fn join_room(
+        &mut self,
+        room_name: &str,
+    ) -> anyhow::Result<tokio::task::JoinHandle<()>> {
+        let (e_tx, mut e_rx) = channel::<WsEvent>(CHANNEL_BUFFER_SIZE);
+        let (a_tx, a_rx) = sync_channel::<WsAction>(CHANNEL_BUFFER_SIZE);
+
+        let client = Client::new();
+
+        let discovery = client
+            .get(
+                self.config
+                    .web
+                    .url
+                    .join("about")
+                    .expect("The url should be correct"),
+            )
+            .send()
+            .await?
+            .json::<Discovery>()
+            .await?;
+
+        log::debug!("{discovery:?}");
+
+        let web_config = self.config.web.clone();
+        let room_string = room_name.to_string();
+        let ws = tokio::spawn(async move {
+            // TODO: move this to a user action
+            let handler = WsHandler::new(e_tx, a_rx, web_config, room_string)
+                .await
+                .inspect_err(|err| log::error!("Fatal error during websocket connection: {err}"));
+            log::trace!("Websocket handler started");
+            let Ok(mut handler) = handler else {
+                return; // Ok to return because handler is not initialized
+            };
+
+            while !handler.step().await {}
+
+            handler.close().await;
+
+            log::trace!("Websocket handler ended");
+        });
+
+        let room = Room::new(room_name, a_tx, e_rx);
+        self.rooms.insert(room_name.to_string(), room);
+
+        if self.current_room_name.is_none() {
+            self.current_room_name = Some(room_name.to_string());
+        }
+
+        // TODO: store the join handles in a different place
+        Ok(ws)
+    }
+
     pub fn draw(&self, f: &'_ mut Frame) {
         if self.checking_logs {
             draw_logs(f, f.area(), &self.logger_state);
@@ -249,176 +294,95 @@ impl App<'_> {
 
     fn draw_chat(&self, f: &'_ mut Frame) {
         let chunks = self.layout.split(f.area());
-        let name = self
-            .get_self()
-            .map_or("Loading...".to_owned(), |u| u.get_name().to_owned());
+        let mut name = String::from("Not in a room");
+        if let Some(room) = self.current_room() {
+            name = room
+                .self_user()
+                .map_or("Loading...".to_owned(), |u| u.get_name().to_owned());
+
+            draw_room_events(
+                f,
+                chunks[1],
+                room.events(),
+                room.users(),
+                room.scroll_offset(),
+            );
+        }
 
         if let Some(area) = &self.username_field {
             f.render_widget(area, chunks[0]);
         } else {
             draw_top_bar(f, chunks[0], name);
         }
-
-        draw_room_events(
-            f,
-            chunks[1],
-            self.room_events(),
-            &self.users,
-            self.scoll_offset,
-        );
         f.render_widget(&self.message_field, chunks[2]);
     }
 
-    pub fn handle_event(&mut self, event: &WsEvent) {
-        match event {
-            WsEvent::UserAdd(user) => {
-                self.add_user(user);
-            }
-            WsEvent::UserRemove(uuid) => {
-                self.remove_user(uuid);
-            }
-            WsEvent::UserChange(user) => {
-                self.change_user_name(user);
-            }
-            WsEvent::Message(message) => {
-                self.add_message(message);
-            }
-            WsEvent::Quit => {
-                self.quit();
-            }
-            WsEvent::SelfInfo(user) => {
-                self.set_self(user);
-            }
-            WsEvent::UserInfo(user) => {
-                self.set_user(user);
-            }
-            WsEvent::Banned(duration, reason) => {
-                self.add_room_event(RoomEvent::Banned {
-                    duration: *duration,
-                    reason: reason.clone(),
-                });
-            }
+    pub fn poll_room_events(&mut self) {
+        for room in self.rooms.values_mut() {
+            room.poll_pending_events();
+        }
+        self.rooms.retain(|_, room| room.active());
+
+        if let Some(current_room) = &self.current_room_name
+            && !self.rooms.contains_key(current_room)
+        {
+            self.current_room_name = None;
         }
     }
 
     pub fn send_sync_requests(&mut self) {
-        if self.get_self().is_none() {
-            self.send_action(WsAction::RequestSelf);
+        if let Some(room) = self.current_room_mut() {
+            room.send_sync_requests();
         }
-
-        self.room_events
-            .iter()
-            .filter_map(|e| match e {
-                RoomEvent::Message(message) => Some(message),
-                _ => None,
-            })
-            .cloned()
-            // as far as I'm aware the only way of having self both in
-            // the filter and the foreach
-            .collect::<Vec<Message>>()
-            .iter()
-            .for_each(|msg| {
-                let id = *msg.get_author();
-                if !self.users.iter().any(|usr| usr.get_id() == &id)
-                    && Some(&id) != self.self_id.as_ref()
-                {
-                    self.send_action(WsAction::RequestUser(id));
-                }
-            });
     }
 
     fn scroll_up(&mut self) {
-        match self.scoll_offset {
-            None => {
-                self.scoll_offset = Some(Offset::Relative(
-                    NonZero::new(1).expect("Literal is non zero"),
-                ));
-            }
-            Some(Offset::Absolute(n)) => {
-                let offset = n.saturating_sub(1);
-                self.scoll_offset = Some(Offset::Absolute(offset));
-            }
-            #[allow(clippy::cast_possible_truncation)]
-            Some(Offset::Relative(n)) => {
-                let offset = n.saturating_add(1);
-                self.scoll_offset = NonZero::new(self.room_events().count() as u32)
-                    .map(|ev| offset.min(ev))
-                    .map(Offset::Relative);
-            }
+        if let Some(room) = self.current_room_mut() {
+            room.scroll_up();
         }
     }
 
     fn scroll_down(&mut self) {
-        match self.scoll_offset {
-            None => {}
-            #[allow(clippy::cast_possible_truncation)]
-            Some(Offset::Absolute(n)) => {
-                let offset = n.saturating_add(1).min(self.room_events().count() as u32);
-                self.scoll_offset = Some(Offset::Absolute(offset));
-            }
-            Some(Offset::Relative(n)) => {
-                let offset = n.get().saturating_sub(1);
-                self.scoll_offset = NonZero::new(offset).map(Offset::Relative);
-            }
+        if let Some(room) = self.current_room_mut() {
+            room.scroll_down();
         }
     }
 
-    // Helper methods
+    fn current_room(&self) -> Option<&Room> {
+        self.current_room_name
+            .clone()
+            .and_then(|r| self.rooms.get(&r))
+    }
 
-    // TODO: Handle the errors gracefully
-    pub fn send_action(&mut self, action: WsAction) {
-        let _ = self.tx.send(action);
+    fn current_room_mut(&mut self) -> Option<&mut Room> {
+        self.current_room_name
+            .clone()
+            .and_then(|r| self.rooms.get_mut(&r))
     }
 
     fn toggle_offset_mode(&mut self) {
-        match self.scoll_offset {
-            Some(offset) => match offset {
-                Offset::Absolute(n) => {
-                    #[allow(clippy::cast_possible_truncation)]
-                    let rel = abs_to_rel(self.room_events().count(), n);
-                    match rel {
-                        Some(rel) => self.scoll_offset = Some(Offset::Relative(rel)),
-                        None => self.scoll_offset = None,
-                    }
-                }
-                Offset::Relative(n) => {
-                    #[allow(clippy::cast_possible_truncation)]
-                    let event_count = rel_to_abs(self.room_events().count(), n.get());
-                    let abs = event_count - n.get().min(event_count);
-                    if abs == 0 {
-                        self.scoll_offset = None;
-                    } else {
-                        self.scoll_offset = Some(Offset::Absolute(abs));
-                    }
-                }
-            },
-            #[allow(clippy::cast_possible_truncation)]
-            None => {
-                self.scoll_offset = Some(Offset::Absolute(
-                    (self.room_events().count() as u32).saturating_sub(1),
-                ));
-            }
+        if let Some(room) = self.current_room_mut() {
+            room.toggle_offset_mode();
         }
     }
 
     fn force_disable_offset(&mut self) {
-        self.scoll_offset = None;
+        if let Some(room) = self.current_room_mut() {
+            room.force_disable_offset();
+        }
     }
 
     fn accept_text(&mut self) {
-        if let Some(text_area) = self.username_field.take() {
-            let text = text_area.lines()[0].trim();
-            if text.chars().count() > 0 {
-                self.send_action(WsAction::ChangeName(text.to_string()));
-                self.send_action(WsAction::RequestSelf);
-            }
+        let username = self.username_field.take();
+        let message = self.message_field.lines()[0].clone();
+        let Some(room) = self.current_room_mut() else {
+            return;
+        };
+        if let Some(text_area) = username {
+            room.change_name(&text_area.lines()[0]);
         } else {
-            let text = self.message_field.lines()[0].clone();
-            let text = text.trim();
-            if text.chars().count() > 0 {
-                self.send_action(WsAction::Message(text.to_string()));
-                self.message_field = text_area();
-            }
+            room.send_text(&message);
+            self.message_field = text_area();
         }
     }
 
@@ -432,26 +396,24 @@ impl App<'_> {
 
     fn toggle_text_area(&mut self) {
         if self.username_field.is_none() {
-            let mut text_area = text_area();
-            text_area.set_block(top_block());
-            if let Some(usr) = self.get_self() {
-                text_area.insert_str(usr.get_name());
-            }
-            self.username_field = Some(text_area);
+            self.enter_username_text_area();
         } else {
-            self.exit_text_area();
+            self.exit_username_text_area();
         }
     }
 
-    fn exit_text_area(&mut self) {
+    fn exit_username_text_area(&mut self) {
         self.username_field = None;
     }
 
-    fn enter_text_area(&mut self) {
+    fn enter_username_text_area(&mut self) {
+        let Some(room) = self.current_room() else {
+            return;
+        };
         if self.username_field.is_none() {
             let mut text_area = text_area();
             text_area.set_block(top_block());
-            if let Some(usr) = self.get_self() {
+            if let Some(usr) = room.self_user() {
                 text_area.insert_str(usr.get_name());
             }
             self.username_field = Some(text_area);
@@ -464,100 +426,30 @@ impl App<'_> {
 
     pub fn quit(&mut self) {
         self.should_quit = true;
-        let _ = self.tx.send(WsAction::Quit);
+        for room in self.rooms.values_mut() {
+            room.quit();
+        }
     }
 
     // getters/setters
-
-    pub fn get_self(&self) -> Option<&User> {
-        self.self_id.and_then(|id| self.get_user(&id))
-    }
-
-    pub fn room_events(&self) -> slice::Iter<'_, RoomEvent> {
-        self.room_events.iter()
-    }
-
-    pub fn add_user(&mut self, user: &User) -> bool {
-        if self.users.iter().any(|usr| usr == user) {
-            true
-        } else {
-            self.room_events.push(RoomEvent::UserJoined(*user.get_id()));
-            self.set_user(user);
-            false
-        }
-    }
-
-    pub fn set_user(&mut self, usr: &User) {
-        if self.users.contains(usr) {
-            self.users.iter_mut().for_each(|u| {
-                if u.get_id() == usr.get_id() {
-                    u.clone_from(usr);
-                }
-            });
-        } else {
-            self.users.push(usr.clone());
-        }
-    }
-
-    pub fn get_user(&self, id: &Uuid) -> Option<&User> {
-        self.users.iter().find(|u| u.get_id() == id)
-    }
-
-    pub fn remove_user(&mut self, id: &Uuid) {
-        // do not remove the user to keep all the references alive
-        // self.users.retain(|usr| usr.get_id() != id);
-        self.room_events.push(RoomEvent::UserLeft(*id));
-    }
-
-    pub fn set_self(&mut self, usr: &User) {
-        self.self_id = Some(*usr.get_id());
-        self.set_user(usr);
-    }
-
-    pub fn change_user_name(&mut self, usr: &User) {
-        let id = usr.get_id();
-        let name = usr.get_name();
-        self.room_events.push(RoomEvent::UserNameChange {
-            from: self
-                .get_user(id)
-                .map(|u| u.get_name().to_owned())
-                .unwrap_or(id.to_string()),
-            to: name.to_owned(),
-        });
-        self.users.iter_mut().for_each(|u| {
-            if u.get_id() == usr.get_id() {
-                u.clone_from(usr);
-            }
-        });
-    }
-
-    pub fn add_message(&mut self, msg: &Message) {
-        self.room_events.push(msg.clone().into());
-    }
-
-    pub fn add_room_event(&mut self, ev: RoomEvent) {
-        self.room_events.push(ev);
-    }
 
     pub fn should_quit(&self) -> bool {
         self.should_quit
     }
 }
 
-impl fmt::Debug for App<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Debug for App<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("App")
             .field("username_field", &self.username_field)
             .field("message_field", &self.message_field)
-            .field("room_events", &self.room_events)
             .field("should_quit", &self.should_quit)
-            .field("self_id", &self.self_id)
             .field("layout", &self.layout)
-            .field("users", &self.users)
-            .field("tx", &self.tx)
-            .field("scoll_offset", &self.scoll_offset)
             .field("checking_logs", &self.checking_logs)
-            .field("logger_state", &"TuiWidgetState")
+            .field("rooms", &self.rooms)
+            .field("current_room_name", &self.current_room_name)
+            .field("config", &self.config)
+            .field("logger_state", &"<LoggerState>")
             .finish()
     }
 }

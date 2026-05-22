@@ -17,12 +17,12 @@ pub enum RoomEvent {
 
 impl RoomEvent {
     #[must_use]
-    pub fn properties(&self, users: &[User]) -> EventType {
+    pub fn properties(&self, users: &impl UserLocator) -> EventType {
         match self {
             RoomEvent::Message(msg) => EventType::User(UserEventType {
                 display_as_loading: true,
                 user_uuid: *msg.get_author(),
-                user: msg.get_author_from(&users).cloned(),
+                user: msg.get_author_from(users).cloned(),
                 message: msg.get_content().to_string(),
                 user_style: Style::new().dim(),
                 message_style: Style::new(),
