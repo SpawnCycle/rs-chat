@@ -40,7 +40,6 @@ fn text_area<'a>() -> TextArea<'a> {
     input
 }
 
-#[allow(unused)]
 impl App<'_> {
     #[must_use]
     pub fn new(config: AppConfig) -> Self {
@@ -198,7 +197,7 @@ impl App<'_> {
             | Input {
                 key: Key::Enter, ..
             } => {
-                self.accept_text();
+                self.submit_text();
             }
             Input { key: Key::Esc, .. } => {
                 self.exit_username_text_area();
@@ -234,7 +233,7 @@ impl App<'_> {
         &mut self,
         room_name: &str,
     ) -> anyhow::Result<tokio::task::JoinHandle<()>> {
-        let (e_tx, mut e_rx) = channel::<WsEvent>(CHANNEL_BUFFER_SIZE);
+        let (e_tx, e_rx) = channel::<WsEvent>(CHANNEL_BUFFER_SIZE);
         let (a_tx, a_rx) = sync_channel::<WsAction>(CHANNEL_BUFFER_SIZE);
 
         let client = Client::new();
@@ -372,7 +371,7 @@ impl App<'_> {
         }
     }
 
-    fn accept_text(&mut self) {
+    fn submit_text(&mut self) {
         let username = self.username_field.take();
         let message = self.message_field.lines()[0].clone();
         let Some(room) = self.current_room_mut() else {

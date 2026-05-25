@@ -48,13 +48,10 @@ pub struct WsHandler {
     rx: Receiver<WsAction>,
 }
 
-fn log_ws_error(err: tungstenite::Error) {
+fn log_ws_error(err: &tungstenite::Error) {
     match err {
         tungstenite::Error::AlreadyClosed => {
             log::warn!("Trying to work with closed websocket");
-        }
-        tungstenite::Error::Io(err) => {
-            log::error!("An IO error happened: {err}");
         }
         _ => {
             log::error!("Websocket error: {err:?}");
@@ -78,8 +75,11 @@ impl WsHandler {
     ) -> anyhow::Result<Self> {
         // TODO: Better error reporting/handling instread of just using anyhow
         let mut url = cfg.url.clone();
-        // TODO: figure out if the server can do wss otherwise fallback to ws
-        url.set_scheme("ws").expect("The url should be correct");
+        if url.scheme() == "https" {
+            url.set_scheme("wss").expect("The url should be correct");
+        } else {
+            url.set_scheme("ws").expect("The url should be correct");
+        }
 
         let stream = Self::connect_websocket(
             &url.join(&format!("room/{room}"))
@@ -113,6 +113,7 @@ impl WsHandler {
 
         tokio::select! {
             res = self.handle_stream() => {
+                let res = res.inspect_err(|err| log::error!("{err}")).unwrap_or(true);
                 should_quit = should_quit || res;
             }
             () = tokio::time::sleep(TICK_DURATION / 2) => {
@@ -128,29 +129,27 @@ impl WsHandler {
         let _ = self.stream.close(None).await;
     }
 
-    async fn handle_stream(&mut self) -> bool {
-        let msg = self.stream.next().await;
+    async fn handle_stream(&mut self) -> anyhow::Result<bool> {
+        let msg = self
+            .stream
+            .next()
+            .await
+            .context("stream resolved to None")??;
+
         match msg {
-            None => {
-                log::warn!("stream resolved to None: {msg:?}");
-                true
+            tungstenite::Message::Text(txt) => {
+                self.handle_message(txt.as_ref()).await?;
             }
-            Some(Ok(res)) => match res {
-                tungstenite::Message::Text(txt) => {
-                    self.handle_message(txt.as_ref()).await;
-                    false
-                }
-                tungstenite::Message::Close(_) => true,
-                _ => {
-                    log::error!("Server trying to user unsupported message types");
-                    false
-                }
-            },
-            Some(Err(err)) => {
-                log_ws_error(err);
-                true
+            tungstenite::Message::Close(_) => {
+                return Ok(true);
+            }
+            _ => {
+                log::error!("Server trying to user unsupported message types");
+                return Ok(false);
             }
         }
+
+        Ok(false)
     }
 
     async fn process_actions(&mut self) -> bool {
@@ -166,13 +165,14 @@ impl WsHandler {
                 Err(TryRecvError::Empty) => {}
             }
         }
+
         for res in &actions {
             match self.handle_action(res).await {
                 Ok(exit) if exit => {
                     return true;
                 }
                 Err(err) => {
-                    log_ws_error(err);
+                    log_ws_error(&err);
                     return true;
                 }
                 _ => {}
@@ -218,41 +218,44 @@ impl WsHandler {
         Ok(false)
     }
 
-    async fn handle_message(&mut self, txt: &str) {
-        if let Ok(msg) = serde_json::from_str::<ServerMessage>(txt) {
-            log::trace!(
-                "{}",
-                serde_json::to_string(&msg).expect("Couldn't re-serialize message")
-            );
-            match msg {
-                ServerMessage::NewMessage(message) => {
-                    let _ = self.tx.send(WsEvent::Message(message)).await;
-                }
-                ServerMessage::UserLeft(user) => {
-                    let _ = self.tx.send(WsEvent::UserRemove(*user.get_id())).await;
-                }
-                ServerMessage::UserJoined(user) => {
-                    let _ = self.tx.send(WsEvent::UserAdd(user)).await;
-                }
-                ServerMessage::UserNameChange(user) => {
-                    let _ = self.tx.send(WsEvent::UserChange(user)).await;
-                }
-                ServerMessage::SelfData(user) => {
-                    let _ = self.tx.send(WsEvent::SelfInfo(user)).await;
-                }
-                ServerMessage::UserData(user) => {
-                    let _ = self.tx.send(WsEvent::UserInfo(user)).await;
-                }
-                ServerMessage::Banned { duration, reason } => {
-                    let _ = self.tx.send(WsEvent::Banned(duration, reason)).await;
-                }
-                _ => {
-                    // TODO: implement these
-                    log::error!("Server sending unimplemented data: {msg:?}");
-                }
+    async fn handle_message(&mut self, txt: &str) -> anyhow::Result<()> {
+        let msg = serde_json::from_str::<ServerMessage>(txt).map_err(|err| {
+            anyhow!("Server trying to send unsupported object or plaint text: {err} : {txt}")
+        })?;
+
+        log::trace!("Server Message: {txt}");
+
+        match msg {
+            ServerMessage::NewMessage(message) => {
+                let _ = self.tx.send(WsEvent::Message(message)).await;
             }
-        } else {
-            log::error!("Server trying to send unsupported object or plaint text: {txt}");
+            ServerMessage::UserLeft(user) => {
+                let _ = self.tx.send(WsEvent::UserRemove(*user.get_id())).await;
+            }
+            ServerMessage::UserJoined(user) => {
+                let _ = self.tx.send(WsEvent::UserAdd(user)).await;
+            }
+            ServerMessage::UserNameChange(user) => {
+                let _ = self.tx.send(WsEvent::UserChange(user)).await;
+            }
+            ServerMessage::SelfData(user) => {
+                let _ = self.tx.send(WsEvent::SelfInfo(user)).await;
+            }
+            ServerMessage::UserData(user) => {
+                let _ = self.tx.send(WsEvent::UserInfo(user)).await;
+            }
+            ServerMessage::Banned { duration, reason } => {
+                let _ = self.tx.send(WsEvent::Banned(duration, reason)).await;
+            }
+            ServerMessage::AllUsers(_)
+            | ServerMessage::UnsupportedMessage(_)
+            | ServerMessage::InvalidUser(_)
+            | ServerMessage::NameTooLong(_) => {
+                // TODO: implement these
+                log::error!("Server sending unimplemented data: {msg:?}");
+            }
         }
+
+        Ok(())
     }
 }

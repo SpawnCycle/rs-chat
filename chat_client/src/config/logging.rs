@@ -7,7 +7,7 @@ use log::LevelFilter;
 #[must_use]
 pub const fn log_level() -> LevelFilter {
     if cfg!(debug_assertions) {
-        LevelFilter::Trace
+        LevelFilter::Debug
     } else {
         LevelFilter::Info
     }

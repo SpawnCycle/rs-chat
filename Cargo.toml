@@ -25,10 +25,10 @@ missing_debug_implementations = "warn"
 tokio = { version = "1.52.2", features = ["full"] }
 uuid = { version = "1.23.1", features = ["v4", "serde"] }
 semver = { version = "1.0.28", features = ["serde"] }
+serde = { version = "1.0.228", features = ["derive"] }
 thiserror = "2.0.18"
 anyhow = "1.0.102"
 log = "0.4.29"
-serde = "1.0.228"
 
 [profile.release]
 opt-level = 3
