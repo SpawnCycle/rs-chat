@@ -44,6 +44,7 @@ impl UserEventType {
             None if self.display_as_loading => "Loading...".to_string(),
             None => self.user_uuid.to_string(),
         };
+        let user_width = user_string.chars().count();
         let message_chars = self.message.chars().collect::<Vec<_>>();
 
         // the full width of the message
@@ -62,7 +63,7 @@ impl UserEventType {
         let first_message = String::from_iter(message_parts.next().unwrap_or(&[]));
         let first_line = Line::from_iter([
             Span::from(user_string).style(self.user_style),
-            Span::from(" ").style(self.user_style),
+            Span::from(" ".repeat(max_user_width - user_width)).style(self.user_style),
             Span::from(first_message).style(self.message_style),
         ]);
         rows.push(first_line);
