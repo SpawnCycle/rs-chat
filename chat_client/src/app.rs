@@ -222,17 +222,47 @@ impl App<'_> {
         }
     }
 
+    // TODO: move this to a more appropriate place
+    pub async fn send_and_wait_for_message_from_room(
+        &mut self,
+        room_name: &str,
+        action: WsAction,
+        check: impl FnMut(&WsEvent) -> bool,
+    ) -> anyhow::Result<Option<WsEvent>> {
+        let (mut room, _) = self.new_room(room_name).await?;
+        room.send_action(action);
+        let res = room.wait_for_message::<false>(check).await;
+        room.send_action(WsAction::Quit);
+        Ok(res)
+    }
+
     /// # Errors
     ///
     /// This function returns the Errors produced by `reqwest` client
     ///
     /// # Panics
     ///
-    /// This function panics if the url in the config is incorrect
+    /// This function panics if the url can't be joined
     pub async fn join_room(
         &mut self,
         room_name: &str,
     ) -> anyhow::Result<tokio::task::JoinHandle<()>> {
+        let (room, ws) = self.new_room(room_name).await?;
+        self.rooms.insert(room_name.to_string(), room);
+
+        if self.current_room_name.is_none() {
+            self.current_room_name = Some(room_name.to_string());
+        }
+
+        // TODO: store the join handles in a different place
+        Ok(ws)
+    }
+
+    // TODO: move the join handle to a different place
+    async fn new_room(
+        &self,
+        room_name: &str,
+    ) -> anyhow::Result<(Room, tokio::task::JoinHandle<()>)> {
         let (e_tx, e_rx) = channel::<WsEvent>(CHANNEL_BUFFER_SIZE);
         let (a_tx, a_rx) = sync_channel::<WsAction>(CHANNEL_BUFFER_SIZE);
 
@@ -272,15 +302,29 @@ impl App<'_> {
             log::trace!("Websocket handler ended");
         });
 
-        let room = Room::new(room_name, a_tx, e_rx);
-        self.rooms.insert(room_name.to_string(), room);
+        Ok((Room::new(room_name, a_tx, e_rx), ws))
+    }
 
-        if self.current_room_name.is_none() {
-            self.current_room_name = Some(room_name.to_string());
-        }
-
-        // TODO: store the join handles in a different place
-        Ok(ws)
+    /// # Errors
+    ///
+    /// This function returns the Errors produced by `reqwest` client
+    ///
+    /// # Panics
+    ///
+    /// This function panics if the url can't be joined
+    pub async fn room_discovery(&self, client: &Client) -> Result<Discovery, reqwest::Error> {
+        client
+            .get(
+                self.config
+                    .web
+                    .url
+                    .join("about")
+                    .expect("The url should be correct"),
+            )
+            .send()
+            .await?
+            .json::<Discovery>()
+            .await
     }
 
     pub fn draw(&self, f: &'_ mut Frame) {

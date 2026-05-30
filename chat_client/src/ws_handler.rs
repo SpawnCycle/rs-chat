@@ -19,6 +19,7 @@ use crate::{
 pub enum WsEvent {
     SelfInfo(User),
     UserAdd(User),
+    UserAllInfo(Vec<User>),
     UserInfo(User),
     UserChange(User),
     UserRemove(Uuid),
@@ -32,6 +33,7 @@ pub enum WsAction {
     Message(String),
     ChangeName(String),
     RequestUser(Uuid),
+    RequestAll,
     RequestSelf,
     Quit,
 }
@@ -214,6 +216,13 @@ impl WsHandler {
                     ))
                     .await?;
             }
+            WsAction::RequestAll => {
+                self.stream
+                    .send(tungstenite::Message::Text(
+                        ClientMessage::GetAllUserData.as_json().into(),
+                    ))
+                    .await?
+            }
         }
         Ok(false)
     }
@@ -247,8 +256,10 @@ impl WsHandler {
             ServerMessage::Banned { duration, reason } => {
                 let _ = self.tx.send(WsEvent::Banned(duration, reason)).await;
             }
-            ServerMessage::AllUsers(_)
-            | ServerMessage::UnsupportedMessage(_)
+            ServerMessage::AllUsers(users) => {
+                let _ = self.tx.send(WsEvent::UserAllInfo(users)).await;
+            }
+            ServerMessage::UnsupportedMessage(_)
             | ServerMessage::InvalidUser(_)
             | ServerMessage::NameTooLong(_) => {
                 // TODO: implement these

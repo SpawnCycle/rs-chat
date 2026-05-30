@@ -76,6 +76,24 @@ impl Room {
         }
     }
 
+    pub async fn wait_for_message<const HANDLE_MESSAGES: bool>(
+        &mut self,
+        mut check: impl FnMut(&WsEvent) -> bool,
+    ) -> Option<WsEvent> {
+        while let Some(value) = self.rx.recv().await {
+            if HANDLE_MESSAGES {
+                self.handle_event(value.clone());
+            }
+            if check(&value) {
+                return Some(value);
+            }
+        }
+
+        self.active = false;
+
+        None
+    }
+
     pub fn send_sync_requests(&mut self) {
         if self.self_user().is_none() {
             self.send_action(WsAction::RequestSelf);
@@ -216,11 +234,16 @@ impl Room {
             WsEvent::Banned(duration, reason) => {
                 self.add_event(RoomEvent::Banned { duration, reason });
             }
+            WsEvent::UserAllInfo(users) => {
+                for user in users {
+                    self.set_user(user);
+                }
+            }
         }
     }
 
     // TODO: Handle the errors gracefully
-    fn send_action(&mut self, action: WsAction) {
+    pub(crate) fn send_action(&mut self, action: WsAction) {
         let _ = self.tx.send(action);
     }
 

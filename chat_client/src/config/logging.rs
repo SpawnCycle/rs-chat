@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{fs::create_dir_all, path::PathBuf};
 
 use anyhow::{Context, Result};
 use dirs::data_dir;
@@ -29,8 +29,14 @@ pub(crate) fn log_path() -> PathBuf {
 /// This function returns an error if the configuration was incorrect
 /// or if the `HOME` folder contains a character that's not utf8 encoded
 pub fn setup() -> Result<()> {
-    // `log4rs` is better, but I couldn't get `tui_logger` to work with it, very sad
+    // `log4rs` is better, but I couldn't get `tui_logger` to work with it,
+    // very sad
     let log_path = log_path();
+
+    // one would think that `tui_logger` runs this
+    if let Some(dir) = log_path.parent() {
+        create_dir_all(dir)?;
+    }
 
     tui_logger::init_logger(LevelFilter::Trace)?;
     tui_logger::set_default_level(log_level());

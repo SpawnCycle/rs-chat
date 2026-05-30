@@ -42,6 +42,7 @@ pub enum ClientMessage {
     ChangeUserName(String),
     SendMessage(String),
     GetUserData(Uuid),
+    GetAllUserData,
     GetSelf,
 }
 

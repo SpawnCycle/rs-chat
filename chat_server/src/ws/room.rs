@@ -74,6 +74,11 @@ impl Room {
         self.users.get(id)
     }
 
+    #[must_use]
+    pub fn get_all_users(&self) -> Vec<User> {
+        self.users.values().cloned().collect()
+    }
+
     pub fn modify_or_add_user(&mut self, user: User) {
         self.users
             .entry(*user.get_id())

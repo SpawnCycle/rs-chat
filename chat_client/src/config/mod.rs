@@ -15,13 +15,16 @@ use clap::Parser;
 use dirs::config_dir;
 use std::{fs, path::PathBuf, process};
 
+/// Returns the app config as well as the app action (if any)
 #[must_use]
-pub fn init() -> AppConfig {
-    let args = AppArgs::parse();
-    handle_flags(&args);
+pub fn init() -> (AppConfig, Option<AppAction>) {
+    let cli = Cli::parse();
+    handle_flags(&cli);
 
     let config = read_config().unwrap_or_default();
-    config.merge(args)
+    let config = config.merge(&cli);
+
+    (config, cli.action)
 }
 
 fn read_config() -> Option<AppConfig> {
@@ -42,15 +45,15 @@ fn read_config() -> Option<AppConfig> {
 }
 
 /// Executes the trivial things and possibly exits
-fn handle_flags(cfg: &AppArgs) {
-    if cfg.default_config {
+fn handle_flags(cfg: &Cli) {
+    if cfg.args.default_config {
         let default_cfg =
             toml::to_string_pretty(&AppConfig::default()).expect("Deserializer shouldn't fail");
         println!("{default_cfg}");
         process::exit(0);
     }
 
-    if cfg.clean {
+    if cfg.args.clean {
         let log_file = logging::log_path();
         let _ = fs::remove_file(log_file)
             .inspect_err(|err| eprintln!("Couldn't delete log file: {err}"));

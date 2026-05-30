@@ -100,6 +100,8 @@ where
 
     async fn handle_text(&mut self, txt: &str) -> WsResult<bool> {
         if let Ok(msg) = serde_json::from_str::<ClientMessage>(txt) {
+            log::debug!("Processing message: {msg:?}");
+
             match msg {
                 ClientMessage::SendMessage(msg) => {
                     self.send_msg(&msg).await?;
@@ -139,6 +141,14 @@ where
                             .await?;
                     }
                 }
+                ClientMessage::GetAllUserData => {
+                    let room = self.room.lock().await;
+                    let mut users = room.get_all_users();
+                    users.retain(|u| *u.get_id() != self.id);
+                    self.stream
+                        .send(ServerMessage::AllUsers(users).as_wsmsg())
+                        .await?
+                }
                 ClientMessage::GetSelf => {
                     let room = self.room.lock().await;
                     let user = room.get_user(&self.id).expect("Should have self");
@@ -150,6 +160,7 @@ where
         } else {
             self.send_msg(txt).await?;
         }
+
         Ok(false)
     }
 

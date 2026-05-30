@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use url::Url;
 
-use super::args::AppArgs;
+use super::args::Cli;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
@@ -28,9 +28,9 @@ impl Default for AppConfig {
 
 impl AppConfig {
     #[must_use]
-    pub fn merge(mut self, args: AppArgs) -> Self {
-        if let Some(url) = args.url {
-            self.web.url = url.0;
+    pub fn merge(mut self, args: &Cli) -> Self {
+        if let Some(url) = &args.args.url {
+            self.web.url = url.0.clone();
         }
 
         self
