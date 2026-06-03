@@ -147,7 +147,7 @@ where
                     users.retain(|u| *u.get_id() != self.id);
                     self.stream
                         .send(ServerMessage::AllUsers(users).as_wsmsg())
-                        .await?
+                        .await?;
                 }
                 ClientMessage::GetSelf => {
                     let room = self.room.lock().await;

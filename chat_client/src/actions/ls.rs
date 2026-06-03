@@ -21,15 +21,17 @@ pub async fn ls_action(config: AppConfig, args: LsArgs) -> anyhow::Result<()> {
     {
         let mut app = app;
         let event = app
-            .send_and_wait_for_message_from_room(&room, WsAction::RequestAll, |event| match event {
-                WsEvent::UserAllInfo(_) => true,
-                _ => false,
+            .send_and_wait_for_message_from_room(&room, WsAction::RequestAll, |event| {
+                matches!(event, WsEvent::UserAllInfo(_))
             })
             .await?;
         match event {
             Some(WsEvent::UserAllInfo(users)) => {
-                let users = users.iter().map(|u| u.get_name()).collect::<Vec<_>>();
-                println!("Users in the room = {:?}", users);
+                let users = users
+                    .iter()
+                    .map(chat_lib::prelude::User::get_name)
+                    .collect::<Vec<_>>();
+                println!("Users in the room = {users:?}");
             }
             _ => {
                 println!("Couldn't get the users in the room");

@@ -223,6 +223,10 @@ impl App<'_> {
     }
 
     // TODO: move this to a more appropriate place
+    ///
+    /// # Errors
+    ///
+    /// This function errors if the room creation errors
     pub async fn send_and_wait_for_message_from_room(
         &mut self,
         room_name: &str,

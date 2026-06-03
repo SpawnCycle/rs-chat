@@ -12,6 +12,10 @@ use crate::{
 };
 
 /// executes the action
+///
+/// # Errors
+///
+/// this function errors if the underlying action implementation erorrs
 pub async fn actions(config: AppConfig, action: AppAction) -> anyhow::Result<()> {
     match action {
         AppAction::Ls(args) => ls_action(config, args).await?,

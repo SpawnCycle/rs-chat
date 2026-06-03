@@ -221,7 +221,7 @@ impl WsHandler {
                     .send(tungstenite::Message::Text(
                         ClientMessage::GetAllUserData.as_json().into(),
                     ))
-                    .await?
+                    .await?;
             }
         }
         Ok(false)
