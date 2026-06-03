@@ -19,6 +19,9 @@ pub struct GlobalArgs {
     /// Sets the base server url all the requests will use
     #[arg(long, global = true)]
     pub url: Option<ServerUrl>,
+    /// Sets the room that is joined to by default
+    #[arg(short, long, global = true)]
+    pub room: Option<String>,
     /// Prints the default config to stdout
     #[arg(long, global = true)]
     pub default_config: bool,
@@ -34,8 +37,6 @@ pub enum AppAction {
 
 #[derive(Debug, Clone, Args)]
 pub struct LsArgs {
-    // TODO: remove this once you can select the default room through the config and global args
-    pub room: Option<String>,
     #[arg(short, long)]
     pub users: bool,
 }

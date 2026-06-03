@@ -7,4 +7,5 @@ pub mod ws_handler;
 
 mod chat;
 mod logs;
+mod requests;
 mod room;

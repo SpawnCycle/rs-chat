@@ -76,24 +76,6 @@ impl Room {
         }
     }
 
-    pub async fn wait_for_message<const HANDLE_MESSAGES: bool>(
-        &mut self,
-        mut check: impl FnMut(&WsEvent) -> bool,
-    ) -> Option<WsEvent> {
-        while let Some(value) = self.rx.recv().await {
-            if HANDLE_MESSAGES {
-                self.handle_event(value.clone());
-            }
-            if check(&value) {
-                return Some(value);
-            }
-        }
-
-        self.active = false;
-
-        None
-    }
-
     pub fn send_sync_requests(&mut self) {
         if self.self_user().is_none() {
             self.send_action(WsAction::RequestSelf);

@@ -1,42 +1,27 @@
 use reqwest::Client;
 
 use crate::{
-    app::App,
     config::{AppConfig, LsArgs},
-    ws_handler::{WsAction, WsEvent},
+    requests::{room_discovery, room_ls},
 };
 
-// TODO: make ls an endpoint on the server
 pub async fn ls_action(config: AppConfig, args: LsArgs) -> anyhow::Result<()> {
-    let app = App::new(config);
     let client = Client::new();
+    let base_url = config.web.url;
+    let room_name = config.web.default_room;
 
-    let discovery = app.room_discovery(&client).await?;
+    let discovery = room_discovery(&client, &base_url).await?;
 
     println!("Server version = {}", discovery.version);
     println!("Available rooms = {:?}", discovery.available_rooms);
 
-    if let Some(room) = args.room
-        && args.users
-    {
-        let mut app = app;
-        let event = app
-            .send_and_wait_for_message_from_room(&room, WsAction::RequestAll, |event| {
-                matches!(event, WsEvent::UserAllInfo(_))
-            })
-            .await?;
-        match event {
-            Some(WsEvent::UserAllInfo(users)) => {
-                let users = users
-                    .iter()
-                    .map(chat_lib::prelude::User::get_name)
-                    .collect::<Vec<_>>();
-                println!("Users in the room = {users:?}");
-            }
-            _ => {
-                println!("Couldn't get the users in the room");
-            }
-        }
+    if args.users {
+        let users = room_ls(&client, &base_url, &room_name).await?;
+        let user_names = users
+            .into_iter()
+            .map(|u| u.get_name().to_string())
+            .collect::<Vec<_>>();
+        println!("Users in room {room_name} = {user_names:?}");
     }
 
     Ok(())

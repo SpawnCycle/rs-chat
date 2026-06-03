@@ -1,4 +1,3 @@
-use chat_lib::discovery::Discovery;
 use ratatui::{
     Frame,
     crossterm::event::Event,
@@ -16,6 +15,7 @@ use crate::{
     config::AppConfig,
     consts::CHANNEL_BUFFER_SIZE,
     logs::draw_logs,
+    requests::room_discovery,
     room::Room,
     ws_handler::{WsAction, WsEvent, WsHandler},
 };
@@ -222,24 +222,6 @@ impl App<'_> {
         }
     }
 
-    // TODO: move this to a more appropriate place
-    ///
-    /// # Errors
-    ///
-    /// This function errors if the room creation errors
-    pub async fn send_and_wait_for_message_from_room(
-        &mut self,
-        room_name: &str,
-        action: WsAction,
-        check: impl FnMut(&WsEvent) -> bool,
-    ) -> anyhow::Result<Option<WsEvent>> {
-        let (mut room, _) = self.new_room(room_name).await?;
-        room.send_action(action);
-        let res = room.wait_for_message::<false>(check).await;
-        room.send_action(WsAction::Quit);
-        Ok(res)
-    }
-
     /// # Errors
     ///
     /// This function returns the Errors produced by `reqwest` client
@@ -272,18 +254,7 @@ impl App<'_> {
 
         let client = Client::new();
 
-        let discovery = client
-            .get(
-                self.config
-                    .web
-                    .url
-                    .join("about")
-                    .expect("The url should be correct"),
-            )
-            .send()
-            .await?
-            .json::<Discovery>()
-            .await?;
+        let discovery = room_discovery(&client, &self.config.web.url).await?;
 
         log::debug!("{discovery:?}");
 
@@ -307,28 +278,6 @@ impl App<'_> {
         });
 
         Ok((Room::new(room_name, a_tx, e_rx), ws))
-    }
-
-    /// # Errors
-    ///
-    /// This function returns the Errors produced by `reqwest` client
-    ///
-    /// # Panics
-    ///
-    /// This function panics if the url can't be joined
-    pub async fn room_discovery(&self, client: &Client) -> Result<Discovery, reqwest::Error> {
-        client
-            .get(
-                self.config
-                    .web
-                    .url
-                    .join("about")
-                    .expect("The url should be correct"),
-            )
-            .send()
-            .await?
-            .json::<Discovery>()
-            .await
     }
 
     pub fn draw(&self, f: &'_ mut Frame) {
