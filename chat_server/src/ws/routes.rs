@@ -16,6 +16,19 @@ pub async fn about(rooms: &State<SyncRoomComponents>) -> Json<Discovery> {
     })
 }
 
+#[get("/room/<path>/ls")]
+pub async fn room_ls(path: &str, rooms: &State<SyncRoomComponents>) -> Json<Vec<User>> {
+    let rooms = rooms.inner().clone();
+    let rooms = rooms.lock().await;
+    let Some(room_components) = rooms.get(path) else {
+        return Json(Vec::new());
+    };
+    let room_components = room_components.lock().await;
+    let room = room_components.room.lock().await;
+
+    Json(room.get_all_users())
+}
+
 #[get("/room/<path>")]
 pub async fn room_ws(
     path: &str,
