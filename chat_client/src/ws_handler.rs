@@ -138,6 +138,8 @@ impl WsHandler {
             .await
             .context("stream resolved to None")??;
 
+        log::debug!("Handler processing action: {msg}");
+
         match msg {
             tungstenite::Message::Text(txt) => {
                 self.handle_message(txt.as_ref()).await?;
@@ -146,7 +148,7 @@ impl WsHandler {
                 return Ok(true);
             }
             _ => {
-                log::error!("Server trying to user unsupported message types");
+                log::error!("User sent an unsupported message type");
                 return Ok(false);
             }
         }
@@ -168,19 +170,20 @@ impl WsHandler {
             }
         }
 
+        let mut should_exit = false;
         for res in &actions {
             match self.handle_action(res).await {
-                Ok(exit) if exit => {
-                    return true;
+                Ok(exit) => {
+                    should_exit |= exit;
                 }
                 Err(err) => {
                     log_ws_error(&err);
-                    return true;
+                    should_exit = true;
                 }
-                _ => {}
             }
         }
-        false
+
+        should_exit
     }
 
     async fn handle_action(&mut self, msg: &WsAction) -> tungstenite::Result<bool> {
@@ -232,7 +235,7 @@ impl WsHandler {
             anyhow!("Server trying to send unsupported object or plaint text: {err} : {txt}")
         })?;
 
-        log::trace!("Server Message: {txt}");
+        log::debug!("Server Message: {txt}");
 
         match msg {
             ServerMessage::NewMessage(message) => {

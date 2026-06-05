@@ -31,10 +31,11 @@ async fn app_entry_point(config: AppConfig, action: Option<AppAction>) -> anyhow
         return Ok(());
     }
 
+    let room_name = config.web.default_room.clone();
     let mut app = App::new(config);
     // TODO: handler the error differently in the user action,
     // if and when that will be a thing
-    let ws = app.join_room("global").await?;
+    let ws = app.join_room(&room_name).await?;
 
     let mut terminal = ratatui::init();
 

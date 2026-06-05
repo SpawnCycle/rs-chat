@@ -33,12 +33,18 @@ pub struct GlobalArgs {
 #[derive(Debug, Clone, Subcommand)]
 pub enum AppAction {
     Ls(LsArgs),
+    Echo(EchoArgs),
 }
 
 #[derive(Debug, Clone, Args)]
 pub struct LsArgs {
     #[arg(short, long)]
     pub users: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct EchoArgs {
+    pub words: Vec<String>,
 }
 
 /// Wrapper around Url that checks if it's http(s)

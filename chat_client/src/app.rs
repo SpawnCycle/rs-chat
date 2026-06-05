@@ -1,18 +1,21 @@
 use ratatui::{
     Frame,
     crossterm::event::Event,
-    layout::{Constraint, Layout},
-    widgets::{Block, Borders},
+    layout::{Constraint, Direction, Layout, Rect, Spacing},
+    symbols::merge::MergeStrategy,
+    text::Text,
+    widgets::{Block, Borders, Clear, Paragraph},
 };
 use ratatui_textarea::{Input, Key, TextArea};
 use reqwest::Client;
 use std::{collections::HashMap, sync::mpsc::sync_channel};
 use tokio::sync::mpsc::channel;
-use tui_logger::{TuiWidgetEvent, TuiWidgetState};
+use tui_logger::TuiWidgetEvent;
+use url::Url;
 
 use crate::{
     chat::{draw_room_events, draw_top_bar, top_block},
-    config::AppConfig,
+    config::{AppConfig, WebConfig},
     consts::CHANNEL_BUFFER_SIZE,
     logs::draw_logs,
     requests::room_discovery,
@@ -20,16 +23,51 @@ use crate::{
     ws_handler::{WsAction, WsEvent, WsHandler},
 };
 
+// TODO: rethink the app structure to allow more flexibility
 pub struct App<'a> {
-    username_field: Option<TextArea<'a>>,
     message_field: TextArea<'a>,
+    active_text_area: Option<ActiveTextArea<'a>>,
     should_quit: bool,
     layout: Layout,
     checking_logs: bool,
+    show_sidebar: bool,
     rooms: HashMap<String, Room>,
     current_room_name: Option<String>,
     config: AppConfig,
-    logger_state: TuiWidgetState,
+    logger_state: tui_logger::TuiWidgetState,
+}
+
+impl std::fmt::Debug for App<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("App")
+            .field("message_field", &self.message_field)
+            .field("active_text_area", &self.active_text_area)
+            .field("should_quit", &self.should_quit)
+            .field("layout", &self.layout)
+            .field("checking_logs", &self.checking_logs)
+            .field("rooms", &self.rooms)
+            .field("current_room_name", &self.current_room_name)
+            .field("config", &self.config)
+            .field("logger_state", &"<LoggerState>")
+            .finish()
+    }
+}
+
+/// Specifies the active text area
+/// with the exception of the message input field
+#[derive(Debug)]
+enum ActiveTextArea<'a> {
+    UsernameField(TextArea<'a>),
+    #[allow(unused)]
+    Popup(TextArea<'a>),
+}
+
+impl ActiveTextArea<'_> {
+    fn input(&mut self, input: Input) -> bool {
+        match self {
+            ActiveTextArea::UsernameField(ta) | ActiveTextArea::Popup(ta) => ta.input(input),
+        }
+    }
 }
 
 fn text_area<'a>() -> TextArea<'a> {
@@ -40,10 +78,50 @@ fn text_area<'a>() -> TextArea<'a> {
     input
 }
 
+/// # Errors
+///
+/// This function errors if there was a problem during any of the web calls,
+/// be it an internet error or a parse one
+pub async fn connect_room(
+    config: WebConfig,
+    base_url: &Url,
+    room_name: &str,
+) -> anyhow::Result<(Room, tokio::task::JoinHandle<()>)> {
+    let (e_tx, e_rx) = channel::<WsEvent>(CHANNEL_BUFFER_SIZE);
+    let (a_tx, a_rx) = sync_channel::<WsAction>(CHANNEL_BUFFER_SIZE);
+
+    let client = Client::new();
+
+    let discovery = room_discovery(&client, base_url).await?;
+
+    log::debug!("{discovery:?}");
+
+    let web_config = config.clone();
+    let room_string = room_name.to_string();
+    let ws = tokio::spawn(async move {
+        let handler = WsHandler::new(e_tx, a_rx, web_config, room_string.clone())
+            .await
+            .inspect_err(|err| log::error!("Fatal error during websocket connection: {err}"));
+        log::debug!("Websocket handler for {room_string} started");
+        let Ok(mut handler) = handler else {
+            return; // Ok to return because handler is not initialized
+        };
+
+        while !handler.step().await {}
+
+        handler.close().await;
+
+        log::debug!("Websocket handler for {room_string} ended");
+    });
+
+    Ok((Room::new(room_name, a_tx, e_rx), ws))
+}
+
 impl App<'_> {
     #[must_use]
     pub fn new(config: AppConfig) -> Self {
         Self {
+            active_text_area: None,
             rooms: HashMap::new(),
             current_room_name: None,
             should_quit: false,
@@ -53,13 +131,14 @@ impl App<'_> {
                 Constraint::Min(1),
                 Constraint::Length(3),
             ]),
-            username_field: None,
             checking_logs: false,
-            logger_state: TuiWidgetState::default(),
+            show_sidebar: false,
+            logger_state: tui_logger::TuiWidgetState::default(),
             config,
         }
     }
 
+    // TODO: rethink input handling
     pub fn handle_input(&mut self, e: Event) {
         if self.checking_logs {
             self.handle_log_input(e);
@@ -216,6 +295,13 @@ impl App<'_> {
             } => {
                 self.toggle_logs();
             }
+            Input {
+                key: Key::Char('b'),
+                ctrl: true,
+                ..
+            } => {
+                self.toggle_sidebar();
+            }
             input => {
                 self.forward_input(input);
             }
@@ -249,35 +335,7 @@ impl App<'_> {
         &self,
         room_name: &str,
     ) -> anyhow::Result<(Room, tokio::task::JoinHandle<()>)> {
-        let (e_tx, e_rx) = channel::<WsEvent>(CHANNEL_BUFFER_SIZE);
-        let (a_tx, a_rx) = sync_channel::<WsAction>(CHANNEL_BUFFER_SIZE);
-
-        let client = Client::new();
-
-        let discovery = room_discovery(&client, &self.config.web.url).await?;
-
-        log::debug!("{discovery:?}");
-
-        let web_config = self.config.web.clone();
-        let room_string = room_name.to_string();
-        let ws = tokio::spawn(async move {
-            // TODO: move this to a user action
-            let handler = WsHandler::new(e_tx, a_rx, web_config, room_string)
-                .await
-                .inspect_err(|err| log::error!("Fatal error during websocket connection: {err}"));
-            log::trace!("Websocket handler started");
-            let Ok(mut handler) = handler else {
-                return; // Ok to return because handler is not initialized
-            };
-
-            while !handler.step().await {}
-
-            handler.close().await;
-
-            log::trace!("Websocket handler ended");
-        });
-
-        Ok((Room::new(room_name, a_tx, e_rx), ws))
+        connect_room(self.config.web.clone(), &self.config.web.url, room_name).await
     }
 
     pub fn draw(&self, f: &'_ mut Frame) {
@@ -289,7 +347,66 @@ impl App<'_> {
     }
 
     fn draw_chat(&self, f: &'_ mut Frame) {
-        let chunks = self.layout.split(f.area());
+        let x_constraints = if self.show_sidebar {
+            #[allow(clippy::cast_possible_truncation)]
+            let max_room_name = self
+                .rooms
+                .keys()
+                .map(|r| r.chars().count())
+                .max()
+                .unwrap_or(5) as u16;
+            let side_width = (max_room_name + 1).max(15);
+            [Constraint::Length(side_width), Constraint::Fill(1)]
+        } else {
+            [Constraint::Length(0), Constraint::Fill(1)]
+        };
+        let x_areas = Layout::new(Direction::Horizontal, x_constraints)
+            .spacing(Spacing::Overlap(u16::from(self.show_sidebar)))
+            .split(f.area());
+        let side_area = x_areas[0];
+        let chat_area = x_areas[1];
+
+        self.draw_sidebar(f, side_area);
+        self.draw_room(f, chat_area, self.show_sidebar);
+    }
+
+    fn draw_sidebar(&self, f: &mut Frame, area: Rect) {
+        let y_areas = Layout::new(
+            Direction::Vertical,
+            [Constraint::Length(2), Constraint::Fill(1)],
+        )
+        .split(area);
+        let title_area = y_areas[0];
+        let title = Paragraph::new("Rooms").block(
+            Block::new()
+                .borders(Borders::BOTTOM | Borders::RIGHT)
+                .merge_borders(MergeStrategy::Fuzzy),
+        );
+        f.render_widget(title, title_area);
+
+        let room_area = y_areas[1];
+        let rooms = self.rooms.keys().map(String::as_str).collect::<Text>();
+        let rooms = Paragraph::new(rooms).block(
+            Block::new()
+                .borders(Borders::RIGHT)
+                .merge_borders(MergeStrategy::Fuzzy),
+        );
+        f.render_widget(rooms, room_area);
+    }
+
+    fn draw_room(&self, f: &mut Frame, area: Rect, left_borders: bool) {
+        let borders = if left_borders {
+            Borders::LEFT
+        } else {
+            Borders::NONE
+        };
+        let block = Block::new()
+            .borders(borders)
+            .merge_borders(MergeStrategy::Fuzzy);
+        f.render_widget(&block, area);
+        let area = block.inner(area);
+
+        let chunks = self.layout.split(area);
         let mut name = String::from("Not in a room");
         if let Some(room) = self.current_room() {
             name = room
@@ -303,10 +420,12 @@ impl App<'_> {
                 room.users(),
                 room.scroll_offset(),
             );
+        } else {
+            f.render_widget(Clear, chunks[1]);
         }
 
-        if let Some(area) = &self.username_field {
-            f.render_widget(area, chunks[0]);
+        if let Some(ActiveTextArea::UsernameField(ta)) = &self.active_text_area {
+            f.render_widget(ta, chunks[0]);
         } else {
             draw_top_bar(f, chunks[0], name);
         }
@@ -327,7 +446,7 @@ impl App<'_> {
     }
 
     pub fn send_sync_requests(&mut self) {
-        if let Some(room) = self.current_room_mut() {
+        for room in self.rooms.values_mut() {
             room.send_sync_requests();
         }
     }
@@ -356,6 +475,12 @@ impl App<'_> {
             .and_then(|r| self.rooms.get_mut(&r))
     }
 
+    fn current_room_mut_action(&mut self, f: impl FnOnce(&mut Room)) {
+        if let Some(room) = self.current_room_mut() {
+            f(room);
+        }
+    }
+
     fn toggle_offset_mode(&mut self) {
         if let Some(room) = self.current_room_mut() {
             room.toggle_offset_mode();
@@ -369,29 +494,35 @@ impl App<'_> {
     }
 
     fn submit_text(&mut self) {
-        let username = self.username_field.take();
-        let message = self.message_field.lines()[0].clone();
-        let Some(room) = self.current_room_mut() else {
-            return;
-        };
-        if let Some(text_area) = username {
-            room.change_name(&text_area.lines()[0]);
-        } else {
-            room.send_text(&message);
-            self.message_field = text_area();
+        match &self.active_text_area {
+            Some(ActiveTextArea::UsernameField(ta)) => {
+                let username = ta.lines()[0].clone();
+                self.active_text_area = None;
+                self.current_room_mut_action(|r| {
+                    r.change_name(&username);
+                });
+            }
+            Some(ActiveTextArea::Popup(_)) => todo!(),
+            None => {
+                let message = self.message_field.lines()[0].clone();
+                self.message_field.clear();
+                self.current_room_mut_action(|r| {
+                    r.send_text(&message);
+                });
+            }
         }
     }
 
     fn forward_input(&mut self, input: Input) {
-        if let Some(text_area) = &mut self.username_field {
-            text_area.input(input);
+        if let Some(active) = &mut self.active_text_area {
+            active.input(input);
         } else {
             self.message_field.input(input);
         }
     }
 
     fn toggle_text_area(&mut self) {
-        if self.username_field.is_none() {
+        if self.active_text_area.is_none() {
             self.enter_username_text_area();
         } else {
             self.exit_username_text_area();
@@ -399,25 +530,29 @@ impl App<'_> {
     }
 
     fn exit_username_text_area(&mut self) {
-        self.username_field = None;
+        self.active_text_area = None;
     }
 
     fn enter_username_text_area(&mut self) {
         let Some(room) = self.current_room() else {
             return;
         };
-        if self.username_field.is_none() {
+        if self.active_text_area.is_none() {
             let mut text_area = text_area();
             text_area.set_block(top_block());
             if let Some(usr) = room.self_user() {
                 text_area.insert_str(usr.get_name());
             }
-            self.username_field = Some(text_area);
+            self.active_text_area = Some(ActiveTextArea::UsernameField(text_area));
         }
     }
 
     fn toggle_logs(&mut self) {
         self.checking_logs = !self.checking_logs;
+    }
+
+    fn toggle_sidebar(&mut self) {
+        self.show_sidebar = !self.show_sidebar;
     }
 
     pub fn quit(&mut self) {
@@ -431,21 +566,5 @@ impl App<'_> {
 
     pub fn should_quit(&self) -> bool {
         self.should_quit
-    }
-}
-
-impl std::fmt::Debug for App<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("App")
-            .field("username_field", &self.username_field)
-            .field("message_field", &self.message_field)
-            .field("should_quit", &self.should_quit)
-            .field("layout", &self.layout)
-            .field("checking_logs", &self.checking_logs)
-            .field("rooms", &self.rooms)
-            .field("current_room_name", &self.current_room_name)
-            .field("config", &self.config)
-            .field("logger_state", &"<LoggerState>")
-            .finish()
     }
 }

@@ -74,6 +74,10 @@ pub async fn room_ws(
                     break;
                 }
             }
+            let _ = loop_ctx
+                .cleanup()
+                .await
+                .inspect_err(|err| log::error!("{err}"));
 
             if room.lock().await.is_empty() {
                 rooms.lock().await.remove_entry(&path);

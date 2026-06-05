@@ -30,6 +30,7 @@ where
     tx: MsgBroadcastSender,
     room: Sync<Room>,
     sd: &'a mut F,
+    stream_open: bool,
     in_room: bool,
 }
 
@@ -54,6 +55,7 @@ where
             tx,
             room,
             sd,
+            stream_open: true,
             in_room: true,
         }
     }
@@ -78,20 +80,36 @@ where
         }
     }
 
+    // This doesn't feel right, but at least it processes all of the messages,
+    // which may or may not be the right thing to do
+    pub async fn cleanup(&mut self) -> WsResult<()> {
+        while let Some(res) = self.stream.next().await {
+            self.handle_stream(res).await?;
+        }
+
+        Ok(())
+    }
+
     async fn handle_stream(&mut self, res: Result<Message, Error>) -> WsResult<bool> {
         match res {
             Err(err) => {
-                self.close_socket().await?;
+                if self.stream_open {
+                    self.close_socket().await?;
+                }
                 Err(err)
             }
             Ok(msg) => match msg {
                 Message::Text(txt) => self.handle_text(&txt).await,
                 Message::Close(_) => {
-                    self.exit_room().await;
+                    if self.stream_open {
+                        self.exit_room().await;
+                    }
                     Ok(true)
                 }
                 _ => {
-                    self.close_logged().await;
+                    if self.stream_open {
+                        self.close_logged().await;
+                    }
                     Ok(true)
                 }
             },

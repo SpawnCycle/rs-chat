@@ -38,7 +38,7 @@ pub fn setup() -> Result<()> {
         create_dir_all(dir)?;
     }
 
-    tui_logger::init_logger(LevelFilter::Trace)?;
+    tui_logger::init_logger(log_level())?;
     tui_logger::set_default_level(log_level());
     let tui_file = tui_logger::TuiLoggerFile::new(
         log_path

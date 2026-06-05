@@ -99,7 +99,7 @@ impl Room {
     }
 
     pub fn quit(&mut self) {
-        log::info!("Quit room {}", self.name);
+        log::info!("Quitting room {}", self.name);
         self.active = false;
         self.send_action(WsAction::Quit);
     }
@@ -226,6 +226,7 @@ impl Room {
 
     // TODO: Handle the errors gracefully
     pub(crate) fn send_action(&mut self, action: WsAction) {
+        log::debug!("Sending action {action:?}");
         let _ = self.tx.send(action);
     }
 
