@@ -54,15 +54,15 @@ pub async fn connect_room(
 /// returns if the given event satisfies a given action (self id is required for actions related to self)
 pub fn event_satisfies_action(ev: &WsEvent, ac: &WsAction, self_id: Option<Uuid>) -> bool {
     match (ev, ac, self_id) {
-        (WsEvent::SelfInfo(_), WsAction::RequestSelf, _) => true,
-        (WsEvent::AllUserInfo(_), WsAction::RequestAll, _) => true,
+        (WsEvent::SelfInfo(_), WsAction::RequestSelf, _)
+        | (WsEvent::AllUserInfo(_), WsAction::RequestAll, _)
+        | (WsEvent::Quit, WsAction::Quit, _) => true,
         (WsEvent::UserInfo(lu), WsAction::RequestUser(ru), _) if lu.get_id() == ru => true,
         (WsEvent::UserChange(u), WsAction::ChangeName(_), Some(self_id))
             if *u.get_id() == self_id =>
         {
             true
         }
-        (WsEvent::Quit, WsAction::Quit, _) => true,
         _ => false,
     }
 }

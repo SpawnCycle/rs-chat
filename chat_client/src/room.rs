@@ -241,7 +241,7 @@ impl Room {
     pub fn send_action(&mut self, action: WsAction) -> bool {
         let buffer = action_should_buffer(&action);
 
-        if !buffer || self.active_requests.get(&action).is_none() {
+        if !buffer || !self.active_requests.contains_key(&action) {
             log::debug!("Sending action {action:?}");
             let _ = self.tx.send(action.clone());
 
