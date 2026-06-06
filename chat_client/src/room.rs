@@ -79,7 +79,7 @@ impl Room {
     pub fn poll_pending_events(&mut self) {
         while let Ok(event) = self.rx.try_recv() {
             self.active_requests
-                .retain(|k, _| event_satisfies_action(&event, k, self.self_id));
+                .retain(|k, _| !event_satisfies_action(&event, k, self.self_id));
             self.handle_event(event);
         }
 
