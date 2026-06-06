@@ -7,20 +7,16 @@ use ratatui::{
     widgets::{Block, Borders, Clear, Paragraph},
 };
 use ratatui_textarea::{Input, Key, TextArea};
-use reqwest::Client;
-use std::{collections::HashMap, sync::mpsc::sync_channel};
-use tokio::sync::mpsc::channel;
+use std::collections::HashMap;
 use tui_logger::TuiWidgetEvent;
-use url::Url;
 
 use crate::{
     chat::{draw_room_events, draw_top_bar, top_block},
-    config::{AppConfig, WebConfig},
-    consts::CHANNEL_BUFFER_SIZE,
+    config::AppConfig,
+    helper::connect_room,
     logs::draw_logs,
-    requests::room_discovery,
     room::Room,
-    ws_handler::{WsAction, WsEvent, WsHandler},
+    ws_handler::WsAction,
 };
 
 // TODO: rethink the app structure to allow more flexibility
@@ -76,45 +72,6 @@ fn text_area<'a>() -> TextArea<'a> {
     input.set_max_histories(0);
     input.set_block(Block::default().borders(Borders::ALL));
     input
-}
-
-/// # Errors
-///
-/// This function errors if there was a problem during any of the web calls,
-/// be it an internet error or a parse one
-pub async fn connect_room(
-    config: WebConfig,
-    base_url: &Url,
-    room_name: &str,
-) -> anyhow::Result<(Room, tokio::task::JoinHandle<()>)> {
-    let (e_tx, e_rx) = channel::<WsEvent>(CHANNEL_BUFFER_SIZE);
-    let (a_tx, a_rx) = sync_channel::<WsAction>(CHANNEL_BUFFER_SIZE);
-
-    let client = Client::new();
-
-    let discovery = room_discovery(&client, base_url).await?;
-
-    log::debug!("{discovery:?}");
-
-    let web_config = config.clone();
-    let room_string = room_name.to_string();
-    let ws = tokio::spawn(async move {
-        let handler = WsHandler::new(e_tx, a_rx, web_config, room_string.clone())
-            .await
-            .inspect_err(|err| log::error!("Fatal error during websocket connection: {err}"));
-        log::debug!("Websocket handler for {room_string} started");
-        let Ok(mut handler) = handler else {
-            return; // Ok to return because handler is not initialized
-        };
-
-        while !handler.step().await {}
-
-        handler.close().await;
-
-        log::debug!("Websocket handler for {room_string} ended");
-    });
-
-    Ok((Room::new(room_name, a_tx, e_rx), ws))
 }
 
 impl App<'_> {
@@ -319,7 +276,11 @@ impl App<'_> {
         &mut self,
         room_name: &str,
     ) -> anyhow::Result<tokio::task::JoinHandle<()>> {
-        let (room, ws) = self.new_room(room_name).await?;
+        let (mut room, ws) = self.new_room(room_name).await?;
+        // get ourselves
+        room.send_action(WsAction::RequestSelf);
+        // get all the users
+        room.send_action(WsAction::RequestAll);
         self.rooms.insert(room_name.to_string(), room);
 
         if self.current_room_name.is_none() {

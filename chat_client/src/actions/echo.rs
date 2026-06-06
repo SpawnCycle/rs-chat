@@ -1,9 +1,9 @@
 use tokio::time::timeout;
 
 use crate::{
-    app::connect_room,
     config::{AppConfig, EchoArgs},
     consts::WS_TIMEOUT_DURATION,
+    helper::connect_room,
 };
 
 pub async fn echo_action(config: AppConfig, args: EchoArgs) -> anyhow::Result<()> {

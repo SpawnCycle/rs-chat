@@ -6,6 +6,7 @@ pub mod event;
 pub mod ws_handler;
 
 mod chat;
+mod helper;
 mod logs;
 mod requests;
 mod room;

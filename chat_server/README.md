@@ -4,5 +4,7 @@
 
 - [ ] Versioning
 - [ ] Actual profiles
-- [ ] Args params
-- [ ] Config
+- [ ] Command line argument support
+- [ ] Config support
+- [ ] Rate limiting
+- [ ] Better moderation system (copy the rustrict example and modify it)

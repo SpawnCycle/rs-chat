@@ -19,7 +19,7 @@ use crate::{
 pub enum WsEvent {
     SelfInfo(User),
     UserAdd(User),
-    UserAllInfo(Vec<User>),
+    AllUserInfo(Vec<User>),
     UserInfo(User),
     UserChange(User),
     UserRemove(Uuid),
@@ -28,7 +28,7 @@ pub enum WsEvent {
     Quit,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum WsAction {
     Message(String),
     ChangeName(String),
@@ -138,8 +138,6 @@ impl WsHandler {
             .await
             .context("stream resolved to None")??;
 
-        log::debug!("Handler processing action: {msg}");
-
         match msg {
             tungstenite::Message::Text(txt) => {
                 self.handle_message(txt.as_ref()).await?;
@@ -235,7 +233,7 @@ impl WsHandler {
             anyhow!("Server trying to send unsupported object or plaint text: {err} : {txt}")
         })?;
 
-        log::debug!("Server Message: {txt}");
+        log::debug!("Server Message: {msg:?}");
 
         match msg {
             ServerMessage::NewMessage(message) => {
@@ -260,7 +258,7 @@ impl WsHandler {
                 let _ = self.tx.send(WsEvent::Banned(duration, reason)).await;
             }
             ServerMessage::AllUsers(users) => {
-                let _ = self.tx.send(WsEvent::UserAllInfo(users)).await;
+                let _ = self.tx.send(WsEvent::AllUserInfo(users)).await;
             }
             ServerMessage::UnsupportedMessage(_)
             | ServerMessage::InvalidUser(_)

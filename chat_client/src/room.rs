@@ -1,4 +1,4 @@
-use std::{collections::HashMap, num::NonZero, sync::mpsc::SyncSender};
+use std::{collections::HashMap, num::NonZero, sync::mpsc::SyncSender, time::Instant};
 
 use chat_lib::types::{Message, User};
 use tokio::sync::mpsc::Receiver;
@@ -6,7 +6,9 @@ use uuid::Uuid;
 
 use crate::{
     chat::Offset,
+    consts::ACTION_LIFETIME,
     event::{RoomEvent, UserLocator},
+    helper::{action_should_buffer, event_satisfies_action},
     ws_handler::{WsAction, WsEvent},
 };
 
@@ -33,6 +35,9 @@ pub struct Room {
     tx: SyncSender<WsAction>,
     rx: Receiver<WsEvent>,
     active: bool,
+    /// # Action queue
+    /// Where the key is the action and the value is when it was sent
+    active_requests: HashMap<WsAction, Instant>,
 }
 
 impl Room {
@@ -47,6 +52,7 @@ impl Room {
             scoll_offset: None,
             name: name.to_string(),
             active: true,
+            active_requests: HashMap::new(),
         }
     }
 
@@ -71,9 +77,14 @@ impl Room {
     }
 
     pub fn poll_pending_events(&mut self) {
-        while let Ok(action) = self.rx.try_recv() {
-            self.handle_event(action);
+        while let Ok(event) = self.rx.try_recv() {
+            self.active_requests
+                .retain(|k, _| event_satisfies_action(&event, k, self.self_id));
+            self.handle_event(event);
         }
+
+        self.active_requests
+            .retain(|_, v| v.elapsed() < ACTION_LIFETIME);
     }
 
     pub fn send_sync_requests(&mut self) {
@@ -216,7 +227,7 @@ impl Room {
             WsEvent::Banned(duration, reason) => {
                 self.add_event(RoomEvent::Banned { duration, reason });
             }
-            WsEvent::UserAllInfo(users) => {
+            WsEvent::AllUserInfo(users) => {
                 for user in users {
                     self.set_user(user);
                 }
@@ -225,9 +236,24 @@ impl Room {
     }
 
     // TODO: Handle the errors gracefully
-    pub(crate) fn send_action(&mut self, action: WsAction) {
-        log::debug!("Sending action {action:?}");
-        let _ = self.tx.send(action);
+    /// returns true if the action was sent,
+    /// false if the action is already in the queue
+    pub fn send_action(&mut self, action: WsAction) -> bool {
+        let buffer = action_should_buffer(&action);
+
+        if !buffer || self.active_requests.get(&action).is_none() {
+            log::debug!("Sending action {action:?}");
+            let _ = self.tx.send(action.clone());
+
+            if buffer {
+                let now = Instant::now();
+                self.active_requests.insert(action, now);
+            }
+
+            true
+        } else {
+            false
+        }
     }
 
     fn add_user(&mut self, user: User) -> bool {

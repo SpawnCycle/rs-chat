@@ -1,8 +1,6 @@
 # The tui part of the chat
 
-This app is more of a proof of concept rather than a production app, because a crutial depencency (tui-textarea) hasn't gotten an update in 3 years (as of writing)
-
-## (Previously) Planned Features:
+## Planned Features:
 
 - [x] Send messages
 - [x] Name change
@@ -14,3 +12,11 @@ This app is more of a proof of concept rather than a production app, because a c
 - [ ] Help menu/Other helpful binds
 - [ ] Better documentation
 - [ ] Ability to connect to multiple rooms (from different servers)
+
+## Road to 0.1.0 (inital release)
+
+- [ ] Abstract away the websocket to make it testable (the websocket crate doesn't have a mock type or trait)
+- [ ] Tests
+- [ ] Help menu
+- [ ] The ability to quit a room
+- [ ] The ability to join a room (apart from the default one)

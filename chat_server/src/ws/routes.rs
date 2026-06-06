@@ -77,7 +77,7 @@ pub async fn room_ws(
             let _ = loop_ctx
                 .cleanup()
                 .await
-                .inspect_err(|err| log::error!("{err}"));
+                .inspect_err(|err| log::warn!("Error during cleanup: {err}"));
 
             if room.lock().await.is_empty() {
                 rooms.lock().await.remove_entry(&path);
