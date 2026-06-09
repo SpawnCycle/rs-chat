@@ -28,7 +28,7 @@ pub async fn connect_room(
 
     let discovery = room_discovery(&client, base_url).await?;
 
-    log::debug!("{discovery:?}");
+    log::debug!("{base_url} - {discovery:?}");
 
     let web_config = config.clone();
     let room_string = room_name.to_string();

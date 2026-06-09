@@ -3,10 +3,12 @@ pub mod app;
 pub mod config;
 pub mod consts;
 pub mod event;
-pub mod ws_handler;
 
 mod chat;
 mod helper;
 mod logs;
 mod requests;
 mod room;
+mod ws_connection;
+mod ws_handler;
+mod ws_mock;
