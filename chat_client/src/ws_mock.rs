@@ -11,7 +11,10 @@ pub struct MockWebSocket {
     strategy: MockStrategy,
     tx: Sender<Message>,
     rx: Receiver<Message>,
+    /// Stores the incoming messages,
+    /// which can be added through the sender
     in_messages: VecDeque<Message>,
+    /// Stores the outgoing messages (through the Sink trait)
     out_messages: VecDeque<Message>,
     ended: bool,
     closing: bool,
@@ -33,11 +36,11 @@ impl MockWebSocket {
         &self.in_messages
     }
 
-    pub fn new_proxy(out_tx: Sender<Message>, out_rx: Receiver<Message>) -> Self {
+    pub fn new_proxy(out_tx: Sender<Message>, in_rx: Receiver<Message>) -> Self {
         Self {
             strategy: MockStrategy::Proxy,
             tx: out_tx,
-            rx: out_rx,
+            rx: in_rx,
             in_messages: VecDeque::new(),
             out_messages: VecDeque::new(),
             ended: false,
@@ -69,10 +72,12 @@ impl MockWebSocket {
 
     fn flush_out_messages(&mut self) {
         if self.strategy == MockStrategy::Proxy {
-            for msg in &self.out_messages {
-                let _ = self.tx.blocking_send(msg.clone());
-            }
-            self.out_messages.clear();
+            let mut send_failed = false;
+            // send the messages and remove those which succeeded
+            self.out_messages.retain(|msg| {
+                let res = self.tx.try_send(msg.clone());
+                res.is_err()
+            });
         }
     }
 
@@ -148,13 +153,16 @@ impl Sink<Message> for MockWebSocket {
 mod tests {
     use super::*;
 
+    use futures::StreamExt;
+    use tokio::sync::mpsc::channel;
+
     fn print_messages(mock: &MockWebSocket) {
         eprintln!("IN = {:?}", mock.get_in());
         eprintln!("OUT = {:?}", mock.get_out());
     }
 
     #[tokio::test]
-    async fn mock_ws_store_test() -> anyhow::Result<()> {
+    async fn mock_ws_store_single_message() -> anyhow::Result<()> {
         let mut mock = MockWebSocket::new_store();
 
         let msg = Message::Text("Hello".into());
@@ -162,6 +170,35 @@ mod tests {
 
         print_messages(&mock);
         assert!(mock.get_out().contains(&msg));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn mock_ws_proxy_single_message() -> anyhow::Result<()> {
+        let (in_tx, mut in_rx) = channel(CHANNEL_BUFFER_SIZE);
+        let (out_tx, out_rx) = channel(CHANNEL_BUFFER_SIZE);
+        let mut mock = MockWebSocket::new_proxy(in_tx, out_rx);
+
+        // Incoming message, which would be accessed through `Stream`
+        let in_msg = Message::Text("IN".into());
+        // Outgoing message, which would be sent through `Sink`
+        let out_msg = Message::Text("OUT".into());
+
+        // Send an incoming message
+        out_tx.send(in_msg.clone()).await?;
+        // Send an outgoing message
+        mock.send(out_msg.clone()).await?;
+
+        // gather the incoming messages
+        let out = mock
+            .collect::<Vec<_>>()
+            .await
+            .into_iter()
+            .filter_map(Result::ok)
+            .collect::<Vec<_>>();
+        assert!(out.contains(&in_msg));
+        assert!(in_rx.recv().await == Some(out_msg));
 
         Ok(())
     }

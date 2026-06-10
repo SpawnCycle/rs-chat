@@ -13,7 +13,6 @@ use tokio_tungstenite::{
 use crate::ws_mock::MockWebSocket;
 
 #[derive(Debug)]
-#[allow(unused)]
 pub enum WsConnection {
     WebSocket(Box<WebSocketStream<MaybeTlsStream<TcpStream>>>),
     Mock(Box<MockWebSocket>),
