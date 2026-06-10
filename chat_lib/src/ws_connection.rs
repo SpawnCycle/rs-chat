@@ -34,6 +34,9 @@ impl From<MockWebSocket> for WsConnection {
 }
 
 impl WsConnection {
+    /// # Errors
+    ///
+    /// This function errors if the underlying close implementation fails
     pub async fn close(&mut self, frame: Option<CloseFrame>) -> Result<(), Error> {
         match self {
             WsConnection::WebSocket(ws) => WebSocketStream::close(ws, frame).await,
