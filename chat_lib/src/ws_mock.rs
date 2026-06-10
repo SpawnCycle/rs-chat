@@ -4,8 +4,6 @@ use std::{collections::VecDeque, task::Poll};
 use tokio::sync::mpsc::{Receiver, Sender, channel};
 use tokio_tungstenite::tungstenite::{Error, Message, protocol::CloseFrame};
 
-use crate::consts::CHANNEL_BUFFER_SIZE;
-
 #[derive(Debug)]
 pub struct MockWebSocket {
     strategy: MockStrategy,
@@ -49,7 +47,8 @@ impl MockWebSocket {
     }
 
     pub fn new_store() -> Self {
-        let (tx, rx) = channel(CHANNEL_BUFFER_SIZE);
+        // the size doesn't actually matter here because it's unused either way
+        let (tx, rx) = channel(32);
         Self {
             strategy: MockStrategy::Store,
             tx,
@@ -156,6 +155,7 @@ mod tests {
     use futures::StreamExt;
     use tokio::sync::mpsc::channel;
 
+    #[allow(unused)]
     fn print_messages(mock: &MockWebSocket) {
         eprintln!("IN = {:?}", mock.get_in());
         eprintln!("OUT = {:?}", mock.get_out());
@@ -165,7 +165,7 @@ mod tests {
     async fn mock_ws_store_single_message() -> anyhow::Result<()> {
         let mut mock = MockWebSocket::new_store();
 
-        let msg = Message::Text("Hello".into());
+        let msg = Message::text("Hello");
         mock.send(msg.clone()).await?;
 
         print_messages(&mock);
@@ -176,14 +176,14 @@ mod tests {
 
     #[tokio::test]
     async fn mock_ws_proxy_single_message() -> anyhow::Result<()> {
-        let (in_tx, mut in_rx) = channel(CHANNEL_BUFFER_SIZE);
-        let (out_tx, out_rx) = channel(CHANNEL_BUFFER_SIZE);
+        let (in_tx, mut in_rx) = channel(32);
+        let (out_tx, out_rx) = channel(32);
         let mut mock = MockWebSocket::new_proxy(in_tx, out_rx);
 
         // Incoming message, which would be accessed through `Stream`
-        let in_msg = Message::Text("IN".into());
+        let in_msg = Message::text("IN");
         // Outgoing message, which would be sent through `Sink`
-        let out_msg = Message::Text("OUT".into());
+        let out_msg = Message::text("OUT");
 
         // Send an incoming message
         out_tx.send(in_msg.clone()).await?;

@@ -323,12 +323,15 @@ dependencies = [
 name = "chat_lib"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "futures",
  "names",
  "rocket_ws",
  "semver",
  "serde",
  "serde_json",
  "tokio",
+ "tokio-tungstenite 0.29.0",
  "uuid",
 ]
 

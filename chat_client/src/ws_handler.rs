@@ -1,5 +1,5 @@
 use anyhow::{Context, anyhow};
-use chat_lib::prelude::*;
+use chat_lib::{prelude::*, ws_connection::WsConnection};
 use futures::{SinkExt, StreamExt};
 use std::{
     sync::mpsc::{Receiver, TryRecvError},
@@ -13,7 +13,6 @@ use uuid::Uuid;
 use crate::{
     config::file::WebConfig,
     consts::{TICK_DURATION, WS_TIMEOUT_DURATION},
-    ws_connection::WsConnection,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

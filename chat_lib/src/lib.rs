@@ -5,6 +5,11 @@ use semver::Version;
 #[cfg(feature = "ws_message")]
 pub mod ws_message;
 
+#[cfg(feature = "ws_conn")]
+pub mod ws_connection;
+#[cfg(feature = "mock_ws")]
+pub mod ws_mock;
+
 pub mod consts;
 pub mod discovery;
 pub mod prelude;

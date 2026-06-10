@@ -12,14 +12,22 @@ workspace = true
 
 [features]
 default = []
+
+ws_conn = ["dep:tokio-tungstenite"]
+mock_ws = ["ws_conn"]
 ws_message = ["dep:rocket_ws"]
 
 [dependencies]
+tokio-tungstenite = { workspace = true, optional = true }
+anyhow = { workspace = true }
+
+rocket_ws = { version = "0.1.1", optional = true }
+
 serde = { workspace = true }
 tokio = { workspace = true }
 uuid = { workspace = true }
 semver = { workspace = true }
+futures = { workspace = true }
 
 names = "0.14.0"
-rocket_ws = { version = "0.1.1", optional = true }
 serde_json = "1.0.149"
