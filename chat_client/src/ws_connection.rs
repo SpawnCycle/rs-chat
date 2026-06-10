@@ -7,27 +7,51 @@ use futures::{Sink, SinkExt, Stream, StreamExt, stream::FusedStream};
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
-    tungstenite::{Error, Message},
+    tungstenite::{Error, Message, protocol::CloseFrame},
 };
 
 use crate::ws_mock::MockWebSocket;
 
 #[derive(Debug)]
+#[allow(unused)]
 pub enum WsConnection {
-    WebSocket(WebSocketStream<MaybeTlsStream<TcpStream>>),
-    Mock(MockWebSocket),
+    WebSocket(Box<WebSocketStream<MaybeTlsStream<TcpStream>>>),
+    Mock(Box<MockWebSocket>),
 }
 
-// TODO: add websocket `close`
+impl From<WebSocketStream<MaybeTlsStream<TcpStream>>> for WsConnection {
+    fn from(value: WebSocketStream<MaybeTlsStream<TcpStream>>) -> Self {
+        Self::WebSocket(Box::new(value))
+    }
+}
+
+impl From<MockWebSocket> for WsConnection {
+    fn from(value: MockWebSocket) -> Self {
+        Self::Mock(Box::new(value))
+    }
+}
+
+impl WsConnection {
+    pub async fn close(&mut self, frame: Option<CloseFrame>) -> Result<(), Error> {
+        match self {
+            WsConnection::WebSocket(ws) => WebSocketStream::close(ws, frame).await,
+            WsConnection::Mock(mock) => MockWebSocket::close(mock, frame).await,
+        }
+    }
+}
 
 // Wrapper function for the traits, because of `Pin`
 impl WsConnection {
+    // Stream
+
     fn poll_next_wr(&mut self, cx: &mut Context<'_>) -> Poll<Option<Result<Message, Error>>> {
         match self {
             WsConnection::WebSocket(ws) => ws.poll_next_unpin(cx),
             WsConnection::Mock(mock) => mock.poll_next_unpin(cx),
         }
     }
+
+    // Sink
 
     fn poll_ready_wr(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Error>> {
         match self {

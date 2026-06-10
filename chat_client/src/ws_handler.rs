@@ -5,14 +5,15 @@ use std::{
     sync::mpsc::{Receiver, TryRecvError},
     time::Duration,
 };
-use tokio::{net::TcpStream, sync::mpsc::Sender};
-use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async, tungstenite};
+use tokio::sync::mpsc::Sender;
+use tokio_tungstenite::{connect_async, tungstenite};
 use url::Url;
 use uuid::Uuid;
 
 use crate::{
     config::file::WebConfig,
     consts::{TICK_DURATION, WS_TIMEOUT_DURATION},
+    ws_connection::WsConnection,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -38,14 +39,12 @@ pub enum WsAction {
     Quit,
 }
 
-type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
-
 /// The type that stands between the server and the client,
 /// handling the communication using types `WsEvent` and `WsAction`
 /// needs to be closed manually
 #[derive(Debug)]
 pub struct WsHandler {
-    stream: WsStream,
+    stream: WsConnection,
     tx: Sender<WsEvent>,
     rx: Receiver<WsAction>,
 }
@@ -98,11 +97,11 @@ impl WsHandler {
         Ok(Self { stream, tx, rx })
     }
 
-    async fn connect_websocket(cfg: &Url) -> anyhow::Result<WsStream> {
+    async fn connect_websocket(cfg: &Url) -> anyhow::Result<WsConnection> {
         tokio::select! {
             conn = connect_async(cfg.to_string()) => {
                 let (stream, _res) = conn?;
-                Ok(stream)
+                Ok(WsConnection::from(stream))
             }
             () = tokio::time::sleep(WS_TIMEOUT_DURATION) => {
                 Err(anyhow!("The connection was taking too long"))
