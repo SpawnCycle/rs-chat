@@ -1,42 +1,20 @@
 mod logging;
 
-use rocket::{Build, Config, Rocket};
+use tokio::net::TcpListener;
 
-use chat_server::ws::WsFairing;
-
-#[rocket::main]
+#[tokio::main]
 async fn main() -> anyhow::Result<()> {
     logging::setup()?;
 
-    rocket()
-        .launch()
-        .await
-        .inspect_err(|err| log::error!("There was a fatal error during: {err}"))?;
+    let r = chat_server::app();
+
+    let l = TcpListener::bind("0.0.0.0:8000").await?;
+
+    let addr = l.local_addr()?;
+
+    log::warn!("Listening on {addr}");
+
+    axum::serve(l, r).await?;
 
     Ok(())
-}
-
-fn rocket() -> Rocket<Build> {
-    rocket::custom(rocket_cfg()).attach(WsFairing::new("/api/ws".into()))
-}
-
-// TODO: Actually implement file configs and args
-#[must_use]
-pub fn rocket_cfg() -> Config {
-    Config {
-        cli_colors: false,
-        ..Default::default()
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[tokio::test]
-    async fn server_can_launch() -> Result<(), anyhow::Error> {
-        rocket().ignite().await?;
-
-        Ok(())
-    }
 }

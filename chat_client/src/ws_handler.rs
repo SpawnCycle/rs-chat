@@ -81,11 +81,13 @@ impl WsHandler {
             url.set_scheme("ws").expect("The url should be correct");
         }
 
-        let stream = Self::connect_websocket(
-            &url.join(&format!("room/{room}"))
-                .context("Couldn't parse url string")?,
-        )
-        .await;
+        let url = &url
+            .join(&format!("room/{room}"))
+            .context("Couldn't parse url string")?;
+
+        log::debug!("Trying to connect to websocket {url}");
+
+        let stream = Self::connect_websocket(url).await;
 
         if let Err(err) = &stream {
             let _ = tx.send(WsEvent::Quit).await;

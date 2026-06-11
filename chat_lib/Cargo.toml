@@ -15,13 +15,13 @@ default = []
 
 ws_conn = ["dep:tokio-tungstenite"]
 mock_ws = ["ws_conn"]
-ws_message = ["dep:rocket_ws"]
+ws_message = ["dep:axum"]
 
 [dependencies]
 tokio-tungstenite = { workspace = true, optional = true }
 anyhow = { workspace = true }
 
-rocket_ws = { version = "0.1.1", optional = true }
+axum = { workspace = true, optional = true }
 
 serde = { workspace = true }
 tokio = { workspace = true }

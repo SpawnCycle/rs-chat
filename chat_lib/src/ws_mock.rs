@@ -26,14 +26,17 @@ pub enum MockStrategy {
 
 #[allow(unused)]
 impl MockWebSocket {
+    #[must_use]
     pub fn get_out(&self) -> &VecDeque<Message> {
         &self.out_messages
     }
 
+    #[must_use]
     pub fn get_in(&self) -> &VecDeque<Message> {
         &self.in_messages
     }
 
+    #[must_use]
     pub fn new_proxy(out_tx: Sender<Message>, in_rx: Receiver<Message>) -> Self {
         Self {
             strategy: MockStrategy::Proxy,
@@ -46,6 +49,7 @@ impl MockWebSocket {
         }
     }
 
+    #[must_use]
     pub fn new_store() -> Self {
         // the size doesn't actually matter here because it's unused either way
         let (tx, rx) = channel(32);
@@ -60,6 +64,9 @@ impl MockWebSocket {
         }
     }
 
+    /// # Errors
+    ///
+    /// This function errors if there was an error sending the closing frame
     pub async fn close(&mut self, frame: Option<CloseFrame>) -> Result<(), Error> {
         self.out_messages.push_back(Message::Close(frame));
         if self.strategy == MockStrategy::Proxy {
@@ -150,6 +157,12 @@ impl Sink<Message> for MockWebSocket {
 
 #[cfg(test)]
 mod tests {
+    #![allow(
+        clippy::print_stdout,
+        clippy::print_stderr,
+        reason = "This doesn't apply to tests"
+    )]
+
     use super::*;
 
     use futures::StreamExt;

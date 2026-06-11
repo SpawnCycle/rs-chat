@@ -1,14 +1,23 @@
+use std::future;
+
+use axum::{
+    Json,
+    extract::{Path, State, WebSocketUpgrade},
+    response::IntoResponse,
+};
 use chat_lib::{discovery::Discovery, prelude::*};
 
 use names::{Generator, Name};
-use rocket::{Shutdown, State, get, serde::json::Json};
 use rustrict::Context;
 use uuid::Uuid;
 
-use crate::ws::{SyncRoomComponents, handler::WsHandler, room::RoomComponents};
+use crate::{
+    AppState,
+    ws::{handler::WsHandler, room::RoomComponents},
+};
 
-#[get("/about")]
-pub async fn about(rooms: &State<SyncRoomComponents>) -> Json<Discovery> {
+/// GET /about
+pub async fn about(State(AppState { components: rooms }): State<AppState>) -> Json<Discovery> {
     let rooms = rooms.lock().await.keys().cloned().collect::<Vec<_>>();
     Json(Discovery {
         version: chat_lib::version().to_string(),
@@ -16,11 +25,13 @@ pub async fn about(rooms: &State<SyncRoomComponents>) -> Json<Discovery> {
     })
 }
 
-#[get("/room/<path>/ls")]
-pub async fn room_ls(path: &str, rooms: &State<SyncRoomComponents>) -> Json<Vec<User>> {
-    let rooms = rooms.inner().clone();
+/// GET /room/{path}/ls
+pub async fn room_ls(
+    path: Path<String>,
+    State(AppState { components: rooms }): State<AppState>,
+) -> Json<Vec<User>> {
     let rooms = rooms.lock().await;
-    let Some(room_components) = rooms.get(path) else {
+    let Some(room_components) = rooms.get(path.as_str()) else {
         return Json(Vec::new());
     };
     let room_components = room_components.lock().await;
@@ -29,15 +40,16 @@ pub async fn room_ls(path: &str, rooms: &State<SyncRoomComponents>) -> Json<Vec<
     Json(room.get_all_users())
 }
 
-#[get("/room/<path>")]
+/// GET /room/{path}
 pub async fn room_ws(
-    path: &str,
-    ws: rocket_ws::WebSocket,
-    rooms: &State<SyncRoomComponents>,
-    sd: Shutdown,
-) -> rocket_ws::Channel<'static> {
+    ws: WebSocketUpgrade,
+    path: Path<String>,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    // TODO: make graceful shutdown
+    let sd = future::pending();
+    let rooms = state.components;
     let path = path.to_string();
-    let rooms = rooms.inner().clone();
     let room_components = rooms
         .lock()
         .await
@@ -49,41 +61,37 @@ pub async fn room_ws(
     let rx = tx.subscribe();
     let room = room_components.lock().await.room.clone();
 
-    ws.channel(move |stream| {
-        Box::pin(async move {
-            let name = Generator::with_naming(Name::Numbered)
-                .next()
-                .expect("Generator should not fail");
-            let mut sd = sd.clone();
-            let new_user = User::new(id, name);
-            {
-                room.lock().await.add_user(new_user.clone());
-            }
-            let _ = tx.send(ServerMessage::UserJoined(new_user.clone()));
+    ws.on_upgrade(move |stream| async move {
+        let name = Generator::with_naming(Name::Numbered)
+            .next()
+            .expect("Generator should not fail");
+        let mut sd = sd.clone();
+        let new_user = User::new(id, name);
+        {
+            room.lock().await.add_user(new_user.clone());
+        }
+        let _ = tx.send(ServerMessage::UserJoined(new_user.clone()));
 
-            let ctx = Context::new();
-            let mut loop_ctx = WsHandler::new(stream, ctx, id, rx, tx, room.clone(), &mut sd);
+        let ctx = Context::new();
+        let mut loop_ctx = WsHandler::new(stream, ctx, id, rx, tx, room.clone(), &mut sd);
 
-            loop {
-                if loop_ctx
-                    .ws_step()
-                    .await
-                    .inspect_err(|err| log::error!("{err}"))
-                    .unwrap_or(true)
-                {
-                    break;
-                }
-            }
-            let _ = loop_ctx
-                .cleanup()
+        loop {
+            if loop_ctx
+                .ws_step()
                 .await
-                .inspect_err(|err| log::warn!("Error during cleanup: {err}"));
-
-            if room.lock().await.is_empty() {
-                rooms.lock().await.remove_entry(&path);
+                .inspect_err(|err| log::error!("{err}"))
+                .unwrap_or(true)
+            {
+                break;
             }
+        }
+        let _ = loop_ctx
+            .cleanup()
+            .await
+            .inspect_err(|err| log::warn!("Error during cleanup: {err}"));
 
-            Ok(())
-        })
+        if room.lock().await.is_empty() {
+            rooms.lock().await.remove_entry(&path);
+        }
     })
 }

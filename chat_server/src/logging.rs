@@ -9,7 +9,7 @@ use log4rs::{
 };
 use std::path::PathBuf;
 
-pub fn setup() -> Result<log4rs::Handle, anyhow::Error> {
+pub fn setup() -> anyhow::Result<log4rs::Handle> {
     let log_file = {
         if cfg!(debug_assertions) {
             PathBuf::from("log/rs_chat_server.log")

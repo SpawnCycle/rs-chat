@@ -1,15 +1,12 @@
+use axum::{
+    Error,
+    extract::ws::{Message, WebSocket},
+};
 use chat_lib::{
     prelude::*,
     types::{Message as ChatMessage, Sync},
 };
-use rocket::{
-    futures::{SinkExt, StreamExt},
-    serde::json::serde_json,
-};
-use rocket_ws::{
-    result::Error,
-    {Message, stream::DuplexStream},
-};
+use futures::StreamExt;
 use rustrict::Context;
 use tokio::sync::broadcast::{self, error::RecvError};
 use uuid::Uuid;
@@ -17,13 +14,13 @@ use uuid::Uuid;
 use crate::config::CONTEXT_OPTS;
 use crate::ws::{MsgBroadcastReceiver, MsgBroadcastSender, Room};
 
-pub type WsResult<T = ()> = Result<T, rocket_ws::result::Error>;
+pub type WsResult<T = ()> = Result<T, axum::Error>;
 
 pub struct WsHandler<'a, F>
 where
     F: Future<Output = ()> + Clone,
 {
-    stream: DuplexStream,
+    stream: WebSocket,
     ctx: Context,
     id: Uuid,
     rx: MsgBroadcastReceiver,
@@ -39,7 +36,7 @@ where
     F: Future<Output = ()> + Clone,
 {
     pub const fn new(
-        stream: DuplexStream,
+        stream: WebSocket,
         ctx: Context,
         id: Uuid,
         rx: MsgBroadcastReceiver,
@@ -193,7 +190,7 @@ where
 
     async fn close_socket(&mut self) -> WsResult {
         self.exit_room().await;
-        self.stream.close(None).await?;
+        self.stream.send(Message::Close(None)).await?;
 
         Ok(())
     }

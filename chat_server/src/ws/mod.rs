@@ -6,12 +6,12 @@ use tokio::sync::{Mutex, broadcast};
 use crate::ws::room::RoomComponents;
 
 mod consts;
-mod fairing;
 mod handler;
 pub mod room;
+mod router;
 mod routes;
 
-pub use fairing::WsFairing;
+pub use router::paths;
 
 pub type BroadCastT = ServerMessage;
 pub type MsgBroadcastSender = broadcast::Sender<BroadCastT>;
