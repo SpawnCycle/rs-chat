@@ -1,5 +1,8 @@
 use anyhow::Context;
-use ratatui::crossterm::event;
+use ratatui::{
+    crossterm::event,
+    widgets::{Clear, Widget},
+};
 use tokio::time::timeout;
 
 use chat_client::{
@@ -31,30 +34,22 @@ async fn app_entry_point(config: AppConfig, action: Option<AppAction>) -> anyhow
         return Ok(());
     }
 
-    let room_name = config.web.default_room.clone();
     let mut app = App::new(config);
-    // TODO: handler the error differently in the user action,
-    // if and when that will be a thing
-    let ws = app.join_room(&room_name).await?;
+    app.mock_unimplemented().await?;
 
     let mut terminal = ratatui::init();
 
     while !app.should_quit() {
         terminal.draw(|f| {
-            app.draw(f);
+            app.render(f);
         })?;
+        app.update();
         if event::poll(TICK_DURATION)? {
-            app.handle_input(event::read().expect("Event read should succeed"));
+            app.handle_event(&event::read().expect("Event read should succeed"));
         }
-        app.send_sync_requests();
-        app.poll_room_events();
     }
 
     ratatui::restore();
-
-    let _ = timeout(WS_TIMEOUT_DURATION / 2, ws).await.inspect_err(|_| {
-        log::error!("Ws join timed out");
-    });
 
     Ok(())
 }
