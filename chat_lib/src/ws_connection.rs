@@ -5,9 +5,9 @@ use std::{
 
 use futures::{Sink, SinkExt, Stream, StreamExt, stream::FusedStream};
 use tokio::net::TcpStream;
-use tokio_tungstenite::{
-    MaybeTlsStream, WebSocketStream, tungstenite::protocol::frame::coding::CloseCode,
-};
+#[cfg(feature = "server")]
+use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 #[cfg(feature = "server")]
 use axum::extract::ws::{CloseFrame as AxumFrame, Message as AxumMessage, WebSocket};
@@ -149,6 +149,7 @@ impl WsConnection {
     fn poll_flush_wr(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), anyhow::Error>> {
         match self {
             WsConnection::WebSocketClient(ws) => ws.poll_flush_unpin(cx).map_err(Into::into),
+            #[cfg(feature = "server")]
             WsConnection::WebSocketServer(ws) => ws.poll_flush_unpin(cx).map_err(Into::into),
             #[cfg(feature = "mock_ws")]
             WsConnection::Mock(mock) => mock.poll_flush_unpin(cx).map_err(Into::into),

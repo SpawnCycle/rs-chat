@@ -1,12 +1,14 @@
 use anyhow::Context;
-use ratatui::crossterm::event;
 
 use chat_client::{
+    AppEvent,
     actions::actions,
     app::App,
     config::{self, AppAction, AppConfig, logging},
-    consts::TICK_DURATION,
+    consts::CHANNEL_BUFFER_SIZE,
+    start_event_poller, start_tick_poller,
 };
+use tokio::sync::mpsc;
 
 fn main() -> anyhow::Result<()> {
     // have to initialize this before logging
@@ -30,8 +32,12 @@ async fn app_entry_point(config: AppConfig, action: Option<AppAction>) -> anyhow
         return Ok(());
     }
 
+    let (tx, mut rx) = mpsc::channel(CHANNEL_BUFFER_SIZE);
     let mut app = App::new(config);
     app.mock_unimplemented().await?;
+
+    let _ = start_event_poller(tx.clone());
+    let _ = start_tick_poller(tx.clone());
 
     let mut terminal = ratatui::init();
 
@@ -39,13 +45,23 @@ async fn app_entry_point(config: AppConfig, action: Option<AppAction>) -> anyhow
         terminal.draw(|f| {
             app.render(f);
         })?;
-        app.update();
-        if event::poll(TICK_DURATION)? {
-            app.handle_event(&event::read().expect("Event read should succeed"));
+        match rx.recv().await {
+            Some(AppEvent::Tick) => app.update(),
+            Some(AppEvent::Event(ev)) => app.handle_event(&ev),
+            Some(AppEvent::Error(err)) => {
+                log::error!("There was an error in one of the background tasks: {err}");
+                break;
+            }
+            // Both channels somehow broke, just exit
+            None => break,
         }
     }
 
     ratatui::restore();
+
+    app.quit();
+
+    // TODO: The runtime takes a long time to shutdown, why?
 
     Ok(())
 }

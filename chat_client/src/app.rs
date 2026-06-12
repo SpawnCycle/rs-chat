@@ -2,7 +2,7 @@ use crossterm::event::Event;
 use ratatui::Frame;
 
 use crate::{
-    components::{AppContext, AppEvent, Component, EventResult, RootComponent},
+    components::{AppAction, AppContext, Component, EventResult, RootComponent},
     config::AppConfig,
 };
 
@@ -49,15 +49,20 @@ impl App {
     }
 
     pub fn handle_event(&mut self, event: &Event) {
-        for component in &mut self.render_stack {
+        for component in self.render_stack.iter_mut().rev() {
             let res = component.handle_event(event, &mut self.context);
 
-            log::debug!("{res:?}");
-
-            if let EventResult::Consumed(Some(AppEvent::Quit)) = res {
+            if let EventResult::Consumed(Some(AppAction::Quit)) = res {
                 self.should_quit = true;
             }
         }
+    }
+
+    pub fn quit(&mut self) {
+        self.render_stack
+            .iter_mut()
+            .rev()
+            .for_each(|c| c.before_quit(&mut self.context));
     }
 
     #[must_use]

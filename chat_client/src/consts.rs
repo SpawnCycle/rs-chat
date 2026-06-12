@@ -4,6 +4,9 @@ use std::time::Duration;
 pub const CHANNEL_BUFFER_SIZE: usize = 128;
 
 /// The length of the event poll for the tui
+pub const POLL_DURATION: Duration = Duration::from_millis(100);
+
+/// A tick event will be sent out after this duration
 pub const TICK_DURATION: Duration = Duration::from_millis(100);
 
 /// The wait time when joining with a ws handler

@@ -13,7 +13,7 @@ use tui_logger::TuiWidgetEvent;
 
 use crate::{
     chat::{draw_room_events, draw_top_bar, top_block},
-    components::{AppContext, AppEvent, Component, EventResult},
+    components::{AppAction, AppContext, Component, EventResult},
     logs::draw_logs,
 };
 
@@ -97,6 +97,10 @@ impl Component for RootComponent<'_> {
     fn update(&self, ctx: &mut AppContext) {
         ctx.poll_room_events();
         ctx.send_sync_requests();
+    }
+
+    fn before_quit(&mut self, ctx: &mut AppContext) {
+        ctx.rooms.values_mut().for_each(|room| room.quit());
     }
 }
 
@@ -183,8 +187,7 @@ impl RootComponent<'_> {
                 ctrl: true,
                 ..
             } => {
-                log::debug!("Quitting");
-                return EventResult::Consumed(Some(AppEvent::Quit));
+                return EventResult::Consumed(Some(AppAction::Quit));
             }
             _ => {
                 // TODO: some other controls?
@@ -255,9 +258,7 @@ impl RootComponent<'_> {
                 ctrl: true,
                 ..
             } => {
-                log::debug!("Quitting");
-                return EventResult::Consumed(Some(AppEvent::Quit));
-                // self.quit();
+                return EventResult::Consumed(Some(AppAction::Quit));
             }
             Input {
                 key: Key::Char('l'),
