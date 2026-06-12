@@ -11,7 +11,7 @@ A chat server
 workspace = true
 
 [dependencies]
-chat_lib = { path = "../chat_lib", features = ["ws_message"] }
+chat_lib = { path = "../chat_lib", features = ["server"] }
 
 axum = { workspace = true }
 anyhow = { workspace = true }

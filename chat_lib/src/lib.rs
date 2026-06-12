@@ -1,8 +1,6 @@
 use semver::Version;
 
-// #[cfg(feature = "ratatui_span")]
-// pub mod ratatui_span;
-#[cfg(feature = "ws_message")]
+#[cfg(feature = "server")]
 pub mod ws_message;
 
 #[cfg(feature = "ws_conn")]
@@ -14,6 +12,10 @@ pub mod consts;
 pub mod discovery;
 pub mod prelude;
 pub mod types;
+
+pub use discovery::Discovery;
+pub use types::{ClientMessage, Message, ServerMessage, User};
+pub use ws_connection::WsConnection;
 
 /// Gives back the compiled Version of the lib crate
 /// Useful for Syncing the avalable comm versions

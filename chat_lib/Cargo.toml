@@ -15,7 +15,7 @@ default = []
 
 ws_conn = ["dep:tokio-tungstenite"]
 mock_ws = ["ws_conn"]
-ws_message = ["dep:axum"]
+server = ["dep:axum"]
 
 [dependencies]
 tokio-tungstenite = { workspace = true, optional = true }

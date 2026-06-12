@@ -3,12 +3,14 @@ use std::{
     task::{Context, Poll},
 };
 
-use axum::extract::ws::{CloseFrame as AxumFrame, Message as AxumMessage, WebSocket};
 use futures::{Sink, SinkExt, Stream, StreamExt, stream::FusedStream};
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream, tungstenite::protocol::frame::coding::CloseCode,
 };
+
+#[cfg(feature = "server")]
+use axum::extract::ws::{CloseFrame as AxumFrame, Message as AxumMessage, WebSocket};
 
 pub use tokio_tungstenite::tungstenite::{Error, Message, protocol::CloseFrame};
 
@@ -20,11 +22,13 @@ pub enum WsConnection {
     /// The type `tokio_tungstenite` uses when used as a client
     WebSocketClient(Box<WebSocketStream<MaybeTlsStream<TcpStream>>>),
     /// The type `axum` uses, which doesn't expose the underlying `tokio_tungstenite` `WebSocketStream`
+    #[cfg(feature = "server")]
     WebSocketServer(Box<WebSocket>),
     #[cfg(feature = "mock_ws")]
     Mock(Box<MockWebSocket>),
 }
 
+#[cfg(feature = "server")]
 fn axum_to_tungstenite(msg: AxumMessage) -> Message {
     match msg {
         AxumMessage::Text(b) => Message::text(b.as_str()),
@@ -39,6 +43,7 @@ fn axum_to_tungstenite(msg: AxumMessage) -> Message {
     }
 }
 
+#[cfg(feature = "server")]
 fn tungstenite_to_axum(msg: Message) -> AxumMessage {
     match msg {
         Message::Text(b) => AxumMessage::text(b.as_str()),
@@ -62,6 +67,7 @@ impl From<WebSocketStream<MaybeTlsStream<TcpStream>>> for WsConnection {
     }
 }
 
+#[cfg(feature = "server")]
 impl From<WebSocket> for WsConnection {
     fn from(value: WebSocket) -> Self {
         Self::WebSocketServer(Box::new(value))
@@ -82,6 +88,7 @@ impl WsConnection {
     pub async fn close(&mut self) -> Result<(), anyhow::Error> {
         match self {
             WsConnection::WebSocketClient(ws) => ws.close().await?,
+            #[cfg(feature = "server")]
             WsConnection::WebSocketServer(ws) => ws.close().await?,
             #[cfg(feature = "mock_ws")]
             WsConnection::Mock(mock) => mock.close().await?,
@@ -104,6 +111,7 @@ impl WsConnection {
     ) -> Poll<Option<Result<Message, anyhow::Error>>> {
         match self {
             WsConnection::WebSocketClient(ws) => ws.poll_next_unpin(cx).map_err(Into::into),
+            #[cfg(feature = "server")]
             WsConnection::WebSocketServer(ws) => ws
                 .poll_next_unpin(cx)
                 // grarly stuff
@@ -119,6 +127,7 @@ impl WsConnection {
     fn poll_ready_wr(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), anyhow::Error>> {
         match self {
             WsConnection::WebSocketClient(ws) => ws.poll_ready_unpin(cx).map_err(Into::into),
+            #[cfg(feature = "server")]
             WsConnection::WebSocketServer(ws) => ws.poll_ready_unpin(cx).map_err(Into::into),
             #[cfg(feature = "mock_ws")]
             WsConnection::Mock(mock) => mock.poll_ready_unpin(cx).map_err(Into::into),
@@ -128,6 +137,7 @@ impl WsConnection {
     fn start_send_wr(&mut self, item: Message) -> Result<(), anyhow::Error> {
         match self {
             WsConnection::WebSocketClient(ws) => ws.start_send_unpin(item).map_err(Into::into),
+            #[cfg(feature = "server")]
             WsConnection::WebSocketServer(ws) => ws
                 .start_send_unpin(tungstenite_to_axum(item))
                 .map_err(Into::into),
@@ -148,6 +158,7 @@ impl WsConnection {
     fn poll_close_wr(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), anyhow::Error>> {
         match self {
             WsConnection::WebSocketClient(ws) => ws.poll_close_unpin(cx).map_err(Into::into),
+            #[cfg(feature = "server")]
             WsConnection::WebSocketServer(ws) => ws.poll_close_unpin(cx).map_err(Into::into),
             #[cfg(feature = "mock_ws")]
             WsConnection::Mock(mock) => mock.poll_close_unpin(cx).map_err(Into::into),
@@ -167,6 +178,7 @@ impl FusedStream for WsConnection {
     fn is_terminated(&self) -> bool {
         match self {
             WsConnection::WebSocketClient(ws) => ws.is_terminated(),
+            #[cfg(feature = "server")]
             WsConnection::WebSocketServer(ws) => ws.is_terminated(),
             #[cfg(feature = "mock_ws")]
             WsConnection::Mock(mock) => mock.is_terminated(),

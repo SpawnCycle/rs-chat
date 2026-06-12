@@ -1,15 +1,11 @@
 use anyhow::Context;
-use ratatui::{
-    crossterm::event,
-    widgets::{Clear, Widget},
-};
-use tokio::time::timeout;
+use ratatui::crossterm::event;
 
 use chat_client::{
     actions::actions,
     app::App,
     config::{self, AppAction, AppConfig, logging},
-    consts::{TICK_DURATION, WS_TIMEOUT_DURATION},
+    consts::TICK_DURATION,
 };
 
 fn main() -> anyhow::Result<()> {
