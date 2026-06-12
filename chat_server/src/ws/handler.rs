@@ -1,12 +1,9 @@
-use axum::{
-    Error,
-    extract::ws::{Message, WebSocket},
-};
 use chat_lib::{
     prelude::*,
     types::{Message as ChatMessage, Sync},
+    ws_connection::{Message, WsConnection},
 };
-use futures::StreamExt;
+use futures::{SinkExt, StreamExt};
 use rustrict::Context;
 use tokio::sync::broadcast::{self, error::RecvError};
 use uuid::Uuid;
@@ -14,13 +11,13 @@ use uuid::Uuid;
 use crate::config::CONTEXT_OPTS;
 use crate::ws::{MsgBroadcastReceiver, MsgBroadcastSender, Room};
 
-pub type WsResult<T = ()> = Result<T, axum::Error>;
+pub type WsResult<T = ()> = Result<T, anyhow::Error>;
 
 pub struct WsHandler<'a, F>
 where
     F: Future<Output = ()> + Clone,
 {
-    stream: WebSocket,
+    stream: WsConnection,
     ctx: Context,
     id: Uuid,
     rx: MsgBroadcastReceiver,
@@ -36,7 +33,7 @@ where
     F: Future<Output = ()> + Clone,
 {
     pub const fn new(
-        stream: WebSocket,
+        stream: WsConnection,
         ctx: Context,
         id: Uuid,
         rx: MsgBroadcastReceiver,
@@ -87,7 +84,7 @@ where
         Ok(())
     }
 
-    async fn handle_stream(&mut self, res: Result<Message, Error>) -> WsResult<bool> {
+    async fn handle_stream(&mut self, res: Result<Message, anyhow::Error>) -> WsResult<bool> {
         match res {
             Err(err) => {
                 if self.stream_open {

@@ -22,7 +22,7 @@ print_stderr = "deny"
 missing_debug_implementations = "warn"
 
 [workspace.dependencies]
-axum = { version = "0.8.9", features = ["ws"] }
+axum = { version = "0.8.9", features = ["ws", "json"] }
 tokio = { version = "1.52.2", features = ["full"] }
 uuid = { version = "1.23.1", features = ["v4", "serde"] }
 semver = { version = "1.0.28", features = ["serde"] }

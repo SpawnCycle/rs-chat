@@ -22,13 +22,12 @@ log = { workspace = true }
 uuid = { workspace = true }
 semver = { workspace = true }
 
-dirs = "6.0.0"
-log4rs = { version = "1.4.0", features = ["all_components"] }
-names = "0.14.0"
-rustrict = "0.7.38"
-tokio-tungstenite = "0.29.0"
 tower = { version = "0.5.3", features = ["full", "log"] }
 tower-http = { version = "0.6.11", features = ["trace"] }
+
+log4rs = { version = "1.4.0", features = ["all_components"] }
 tracing = { version = "0.1.44", features = ["log-always"] }
-tracing-subscriber = "0.3.23"
 serde_json = "1.0.150"
+rustrict = "0.7.38"
+names = "0.14.0"
+dirs = "6.0.0"

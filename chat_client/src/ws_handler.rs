@@ -48,17 +48,6 @@ pub struct WsHandler {
     rx: Receiver<WsAction>,
 }
 
-fn log_ws_error(err: &tungstenite::Error) {
-    match err {
-        tungstenite::Error::AlreadyClosed => {
-            log::warn!("Trying to work with closed websocket");
-        }
-        _ => {
-            log::error!("Websocket error: {err:?}");
-        }
-    }
-}
-
 impl WsHandler {
     /// # Errors
     ///
@@ -128,7 +117,7 @@ impl WsHandler {
     pub async fn close(&mut self) {
         log::info!("Closing Ws stream");
         let _ = self.tx.send(WsEvent::Quit).await;
-        let _ = self.stream.close(None).await;
+        let _ = self.stream.close().await;
     }
 
     async fn handle_stream(&mut self) -> anyhow::Result<bool> {
@@ -175,7 +164,7 @@ impl WsHandler {
                     should_exit |= exit;
                 }
                 Err(err) => {
-                    log_ws_error(&err);
+                    log::error!("{err}");
                     should_exit = true;
                 }
             }
@@ -184,7 +173,7 @@ impl WsHandler {
         should_exit
     }
 
-    async fn handle_action(&mut self, msg: &WsAction) -> tungstenite::Result<bool> {
+    async fn handle_action(&mut self, msg: &WsAction) -> anyhow::Result<bool> {
         match msg {
             WsAction::Message(msg) => {
                 self.stream

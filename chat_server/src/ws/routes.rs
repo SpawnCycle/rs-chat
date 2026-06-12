@@ -73,7 +73,7 @@ pub async fn room_ws(
         let _ = tx.send(ServerMessage::UserJoined(new_user.clone()));
 
         let ctx = Context::new();
-        let mut loop_ctx = WsHandler::new(stream, ctx, id, rx, tx, room.clone(), &mut sd);
+        let mut loop_ctx = WsHandler::new(stream.into(), ctx, id, rx, tx, room.clone(), &mut sd);
 
         loop {
             if loop_ctx
