@@ -38,15 +38,20 @@ pub enum AppError {
     Other(#[from] anyhow::Error),
 }
 
+#[must_use]
 pub fn start_event_poller(tx: Sender<AppEvent>) -> JoinHandle<()> {
     tokio::spawn(async move {
         loop {
-            let res = crossterm::event::poll(POLL_DURATION);
+            let Ok(res) =
+                tokio::task::spawn_blocking(|| crossterm::event::poll(POLL_DURATION)).await
+            else {
+                break;
+            };
             let has_elements = match res {
                 Ok(val) => val,
                 Err(err) => {
                     let _ = tx.send(AppEvent::Error(AppError::Event(err))).await;
-                    return;
+                    break;
                 }
             };
             if has_elements {
@@ -56,7 +61,7 @@ pub fn start_event_poller(tx: Sender<AppEvent>) -> JoinHandle<()> {
                     }
                     Err(err) => {
                         let _ = tx.send(AppEvent::Error(AppError::Event(err))).await;
-                        return;
+                        break;
                     }
                 }
             }
@@ -64,6 +69,7 @@ pub fn start_event_poller(tx: Sender<AppEvent>) -> JoinHandle<()> {
     })
 }
 
+#[must_use]
 pub fn start_tick_poller(tx: Sender<AppEvent>) -> JoinHandle<()> {
     tokio::spawn(async move {
         loop {

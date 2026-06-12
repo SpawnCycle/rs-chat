@@ -15,6 +15,7 @@ use crate::{
     chat::{draw_room_events, draw_top_bar, top_block},
     components::{AppAction, AppContext, Component, EventResult},
     logs::draw_logs,
+    room::Room,
 };
 
 // TODO: seperate the logger into a different component
@@ -100,7 +101,7 @@ impl Component for RootComponent<'_> {
     }
 
     fn before_quit(&mut self, ctx: &mut AppContext) {
-        ctx.rooms.values_mut().for_each(|room| room.quit());
+        ctx.rooms.values_mut().for_each(Room::quit);
     }
 }
 

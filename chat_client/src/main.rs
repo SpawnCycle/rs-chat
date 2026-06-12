@@ -1,5 +1,4 @@
 use anyhow::Context;
-
 use chat_client::{
     AppEvent,
     actions::actions,
@@ -36,8 +35,8 @@ async fn app_entry_point(config: AppConfig, action: Option<AppAction>) -> anyhow
     let mut app = App::new(config);
     app.mock_unimplemented().await?;
 
-    let _ = start_event_poller(tx.clone());
-    let _ = start_tick_poller(tx.clone());
+    let ev = start_event_poller(tx.clone());
+    let tick = start_tick_poller(tx.clone());
 
     let mut terminal = ratatui::init();
 
@@ -57,11 +56,12 @@ async fn app_entry_point(config: AppConfig, action: Option<AppAction>) -> anyhow
         }
     }
 
+    ev.abort();
+    tick.abort();
+
     ratatui::restore();
 
     app.quit();
-
-    // TODO: The runtime takes a long time to shutdown, why?
 
     Ok(())
 }
