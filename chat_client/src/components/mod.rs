@@ -25,5 +25,16 @@ pub enum EventResult {
 
 #[derive(Debug)]
 pub enum AppAction {
+    /// Adds a new screen and switches to it
+    PushScreen(Box<dyn Component>),
+    /// Removes the last screen from the stack,
+    /// quits if the current one was the last one
+    PopScreen,
+    /// Adds a new component to the render stack,
+    /// good for popups and modals
+    PushComponent(Box<dyn Component>),
+    /// Removes the last component from the stack,
+    /// quits the screen if the current component was the last one
+    PopComponent,
     Quit,
 }

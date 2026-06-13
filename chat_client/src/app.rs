@@ -8,7 +8,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct App {
-    render_stack: Vec<Box<dyn Component>>,
+    screen_stack: Vec<Vec<Box<dyn Component>>>,
     context: AppContext,
     should_quit: bool,
 }
@@ -18,7 +18,7 @@ impl App {
     #[must_use]
     pub fn new(config: AppConfig) -> Self {
         Self {
-            render_stack: vec![Box::new(RootComponent::new())],
+            screen_stack: vec![vec![Box::new(RootComponent::new())]],
             context: AppContext::new(config),
             should_quit: false,
         }
@@ -37,32 +37,57 @@ impl App {
     }
 
     pub fn render(&self, f: &mut Frame<'_>) {
-        for component in &self.render_stack {
-            component.render(f, f.area(), &self.context);
+        let screen = self.current_screen();
+        let context = &self.context;
+
+        for component in screen {
+            component.render(f, f.area(), context);
         }
     }
 
     pub fn update(&mut self) {
-        for component in &mut self.render_stack {
-            component.update(&mut self.context);
-        }
-    }
+        let context = &mut self.context;
 
-    pub fn handle_event(&mut self, event: &Event) {
-        for component in self.render_stack.iter_mut().rev() {
-            let res = component.handle_event(event, &mut self.context);
-
-            if let EventResult::Consumed(Some(AppAction::Quit)) = res {
-                self.should_quit = true;
+        for screen in &mut self.screen_stack {
+            for component in screen {
+                component.update(context);
             }
         }
     }
 
+    /// # Panics
+    ///
+    /// This function panics if there isn't a screen in the screen stack
+    pub fn handle_event(&mut self, event: &Event) {
+        let Self {
+            context,
+            screen_stack,
+            ..
+        } = self;
+        let screen = screen_stack
+            .last_mut()
+            .expect("The stack should have at least 1 element");
+        let mut pending_actions = Vec::new();
+
+        for component in screen.iter_mut().rev() {
+            let res = component.handle_event(event, context);
+
+            if let EventResult::Consumed(Some(action)) = res {
+                pending_actions.push(action);
+            }
+        }
+
+        self.process_actions(&pending_actions);
+    }
+
     pub fn quit(&mut self) {
-        self.render_stack
-            .iter_mut()
-            .rev()
-            .for_each(|c| c.before_quit(&mut self.context));
+        let context = &mut self.context;
+
+        self.screen_stack.iter_mut().rev().for_each(|s| {
+            for c in s.iter_mut() {
+                c.before_quit(context);
+            }
+        });
     }
 
     #[must_use]
@@ -70,7 +95,57 @@ impl App {
         self.should_quit
     }
 
+    fn process_actions(&mut self, actions: &[AppAction]) {
+        for action in actions {
+            match action {
+                AppAction::PushScreen(component) => todo!(),
+                AppAction::PopScreen => self.pop_screen(),
+                AppAction::PushComponent(component) => todo!(),
+                AppAction::PopComponent => self.pop_component(),
+                AppAction::Quit => self.should_quit = true,
+            }
+        }
+    }
+
+    fn push_component(&mut self, component: impl Component + 'static) {
+        self.current_screen_mut().push(Box::new(component));
+    }
+
+    fn pop_component(&mut self) {
+        let screen = self.current_screen_mut();
+
+        if screen.len() > 1 {
+            screen.pop();
+        } else {
+            self.pop_screen();
+        }
+    }
+
+    fn push_screen(&mut self, component: impl Component + 'static) {
+        self.screen_stack.push(vec![Box::new(component)]);
+    }
+
+    fn pop_screen(&mut self) {
+        if self.screen_stack.len() > 1 {
+            self.screen_stack.pop();
+        } else {
+            self.should_quit = true;
+        }
+    }
+
     fn add_component(&mut self, component: impl Component + 'static) {
-        self.render_stack.push(Box::new(component));
+        self.current_screen_mut().push(Box::new(component));
+    }
+
+    fn current_screen(&self) -> &Vec<Box<dyn Component>> {
+        self.screen_stack
+            .last()
+            .expect("The screen stack should have at least 1 screen")
+    }
+
+    fn current_screen_mut(&mut self) -> &mut Vec<Box<dyn Component>> {
+        self.screen_stack
+            .last_mut()
+            .expect("The screen stack should have at least 1 screen")
     }
 }
