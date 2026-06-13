@@ -77,7 +77,7 @@ impl App {
             }
         }
 
-        self.process_actions(&pending_actions);
+        self.process_actions(pending_actions);
     }
 
     pub fn quit(&mut self) {
@@ -95,20 +95,20 @@ impl App {
         self.should_quit
     }
 
-    fn process_actions(&mut self, actions: &[AppAction]) {
+    fn process_actions(&mut self, actions: Vec<AppAction>) {
         for action in actions {
             match action {
-                AppAction::PushScreen(component) => todo!(),
+                AppAction::PushScreen(screen) => self.push_screen(screen),
                 AppAction::PopScreen => self.pop_screen(),
-                AppAction::PushComponent(component) => todo!(),
+                AppAction::PushComponent(component) => self.push_component(component),
                 AppAction::PopComponent => self.pop_component(),
                 AppAction::Quit => self.should_quit = true,
             }
         }
     }
 
-    fn push_component(&mut self, component: impl Component + 'static) {
-        self.current_screen_mut().push(Box::new(component));
+    fn push_component(&mut self, component: Box<dyn Component>) {
+        self.current_screen_mut().push(component);
     }
 
     fn pop_component(&mut self) {
@@ -121,8 +121,8 @@ impl App {
         }
     }
 
-    fn push_screen(&mut self, component: impl Component + 'static) {
-        self.screen_stack.push(vec![Box::new(component)]);
+    fn push_screen(&mut self, component: Box<dyn Component>) {
+        self.screen_stack.push(vec![component]);
     }
 
     fn pop_screen(&mut self) {
