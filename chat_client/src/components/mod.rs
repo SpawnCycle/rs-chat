@@ -1,4 +1,5 @@
 mod context;
+mod log_view;
 mod root;
 
 use std::fmt::Debug;
@@ -21,6 +22,43 @@ pub trait Component: Debug {
 pub enum EventResult {
     Consumed(Option<AppAction>),
     Ignored,
+}
+
+impl EventResult {
+    #[must_use]
+    pub fn push_screen(screen: impl Component + 'static) -> Self {
+        Self::Consumed(Some(AppAction::PushScreen(Box::new(screen))))
+    }
+
+    #[must_use]
+    pub fn pop_screen() -> Self {
+        Self::Consumed(Some(AppAction::PopScreen))
+    }
+
+    #[must_use]
+    pub fn push_component(screen: impl Component + 'static) -> Self {
+        Self::Consumed(Some(AppAction::PushComponent(Box::new(screen))))
+    }
+
+    #[must_use]
+    pub fn pop_component() -> Self {
+        Self::Consumed(Some(AppAction::PopComponent))
+    }
+
+    #[must_use]
+    pub fn quit() -> Self {
+        Self::Consumed(Some(AppAction::Quit))
+    }
+
+    #[must_use]
+    pub fn consumed() -> Self {
+        Self::Consumed(None)
+    }
+
+    #[must_use]
+    pub fn ignored() -> Self {
+        Self::Ignored
+    }
 }
 
 #[derive(Debug)]

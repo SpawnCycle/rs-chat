@@ -1,4 +1,4 @@
-use std::fmt::{self, Debug, Formatter};
+use std::fmt::Debug;
 
 use crossterm::event::Event;
 use ratatui::{
@@ -9,34 +9,18 @@ use ratatui::{
     widgets::{Block, Borders, Clear, Paragraph},
 };
 use ratatui_textarea::{Input, Key, TextArea};
-use tui_logger::TuiWidgetEvent;
 
 use crate::{
     chat::{draw_room_events, draw_top_bar, top_block},
-    components::{AppAction, AppContext, Component, EventResult},
-    logs::draw_logs,
+    components::{AppContext, Component, EventResult, log_view::LogViewComponent},
     room::Room,
 };
 
-// TODO: seperate the logger into a different component
+#[derive(Debug)]
 pub struct RootComponent<'a> {
     message_field: TextArea<'a>,
     active_text_area: Option<ActiveTextArea<'a>>,
-    checking_logs: bool,
     show_sidebar: bool,
-    logger_state: tui_logger::TuiWidgetState,
-}
-
-impl Debug for RootComponent<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("RoomComponent")
-            .field("message_field", &self.message_field)
-            .field("active_text_area", &self.active_text_area)
-            .field("checking_logs", &self.checking_logs)
-            .field("show_sidebar", &self.show_sidebar)
-            .field("logger_state", &"<LoggerState>")
-            .finish()
-    }
 }
 
 impl Default for RootComponent<'_> {
@@ -80,19 +64,11 @@ impl ActiveTextArea<'_> {
 
 impl Component for RootComponent<'_> {
     fn handle_event(&mut self, event: &Event, ctx: &mut AppContext) -> EventResult {
-        if self.checking_logs {
-            self.handle_log_input(event.clone())
-        } else {
-            self.handle_chat_input(event.clone(), ctx)
-        }
+        self.handle_chat_input(event.clone(), ctx)
     }
 
     fn render(&self, f: &mut Frame<'_>, area: Rect, ctx: &AppContext) {
-        if self.checking_logs {
-            draw_logs(f, area, &self.logger_state);
-        } else {
-            self.draw_chat(f, area, ctx);
-        }
+        self.draw_chat(f, area, ctx);
     }
 
     fn update(&self, ctx: &mut AppContext) {
@@ -111,92 +87,8 @@ impl RootComponent<'_> {
         Self {
             active_text_area: None,
             message_field: text_area(),
-            checking_logs: false,
             show_sidebar: false,
-            logger_state: tui_logger::TuiWidgetState::default(),
         }
-    }
-
-    fn handle_log_input(&mut self, e: Event) -> EventResult {
-        match e.into() {
-            Input {
-                key: Key::Char('l'),
-                ctrl: true,
-                ..
-            } => {
-                self.toggle_logs();
-            }
-            Input {
-                key: Key::Char(' '),
-                ..
-            } => {
-                self.logger_state.transition(TuiWidgetEvent::SpaceKey);
-            }
-            Input { key: Key::Esc, .. } => {
-                self.logger_state.transition(TuiWidgetEvent::EscapeKey);
-            }
-            Input {
-                key: Key::PageUp, ..
-            } => {
-                self.logger_state.transition(TuiWidgetEvent::PrevPageKey);
-            }
-            Input {
-                key: Key::PageDown, ..
-            } => {
-                self.logger_state.transition(TuiWidgetEvent::NextPageKey);
-            }
-            Input { key: Key::Up, .. } => {
-                self.logger_state.transition(TuiWidgetEvent::UpKey);
-            }
-            Input { key: Key::Down, .. } => {
-                self.logger_state.transition(TuiWidgetEvent::DownKey);
-            }
-            Input { key: Key::Left, .. } => {
-                self.logger_state.transition(TuiWidgetEvent::LeftKey);
-            }
-            Input {
-                key: Key::Right, ..
-            } => {
-                self.logger_state.transition(TuiWidgetEvent::RightKey);
-            }
-            Input {
-                key: Key::Char('+'),
-                ..
-            } => {
-                self.logger_state.transition(TuiWidgetEvent::PlusKey);
-            }
-            Input {
-                key: Key::Char('-'),
-                ..
-            } => {
-                self.logger_state.transition(TuiWidgetEvent::MinusKey);
-            }
-            Input {
-                key: Key::Char('h'),
-                ..
-            } => {
-                self.logger_state.transition(TuiWidgetEvent::HideKey);
-            }
-            Input {
-                key: Key::Char('f'),
-                ..
-            } => {
-                self.logger_state.transition(TuiWidgetEvent::FocusKey);
-            }
-            Input {
-                key: Key::Char('q'),
-                ctrl: true,
-                ..
-            } => {
-                return EventResult::Consumed(Some(AppAction::Quit));
-            }
-            _ => {
-                // TODO: some other controls?
-                return EventResult::Ignored;
-            }
-        }
-
-        EventResult::Consumed(None)
     }
 
     fn handle_chat_input(&mut self, e: Event, ctx: &mut AppContext) -> EventResult {
@@ -259,14 +151,14 @@ impl RootComponent<'_> {
                 ctrl: true,
                 ..
             } => {
-                return EventResult::Consumed(Some(AppAction::Quit));
+                return EventResult::quit();
             }
             Input {
                 key: Key::Char('l'),
                 ctrl: true,
                 ..
             } => {
-                self.toggle_logs();
+                return EventResult::push_screen(LogViewComponent::new());
             }
             Input {
                 key: Key::Char('b'),
@@ -280,7 +172,7 @@ impl RootComponent<'_> {
             }
         }
 
-        EventResult::Consumed(None)
+        EventResult::consumed()
     }
 
     /// # Errors
@@ -440,10 +332,6 @@ impl RootComponent<'_> {
             }
             self.active_text_area = Some(ActiveTextArea::UsernameField(text_area));
         }
-    }
-
-    fn toggle_logs(&mut self) {
-        self.checking_logs = !self.checking_logs;
     }
 
     fn toggle_sidebar(&mut self) {

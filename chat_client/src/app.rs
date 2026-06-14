@@ -115,7 +115,9 @@ impl App {
         let screen = self.current_screen_mut();
 
         if screen.len() > 1 {
-            screen.pop();
+            if let Some(mut component) = screen.pop() {
+                component.before_quit(&mut self.context);
+            }
         } else {
             self.pop_screen();
         }
@@ -127,7 +129,11 @@ impl App {
 
     fn pop_screen(&mut self) {
         if self.screen_stack.len() > 1 {
-            self.screen_stack.pop();
+            if let Some(screen) = self.screen_stack.pop() {
+                for mut component in screen.into_iter().rev() {
+                    component.before_quit(&mut self.context);
+                }
+            }
         } else {
             self.should_quit = true;
         }
