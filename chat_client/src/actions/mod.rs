@@ -9,7 +9,7 @@ mod ls;
 
 use crate::{
     actions::{echo::echo_action, ls::ls_action},
-    config::{AppAction, AppConfig},
+    config::{ActionType, AppConfig},
 };
 
 /// executes the action
@@ -17,10 +17,10 @@ use crate::{
 /// # Errors
 ///
 /// this function errors if the underlying action implementation erorrs
-pub async fn actions(config: AppConfig, action: AppAction) -> anyhow::Result<()> {
+pub async fn actions(config: AppConfig, action: ActionType) -> anyhow::Result<()> {
     match action {
-        AppAction::Ls(args) => ls_action(config, args).await?,
-        AppAction::Echo(args) => echo_action(config, args).await?,
+        ActionType::Ls(args) => ls_action(config, args).await?,
+        ActionType::Echo(args) => echo_action(config, args).await?,
     }
     Ok(())
 }

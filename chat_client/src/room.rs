@@ -171,10 +171,10 @@ impl Room {
     }
 
     pub fn toggle_offset_mode(&mut self) {
+        #[allow(clippy::cast_possible_truncation)]
         match self.scoll_offset {
             Some(offset) => match offset {
                 Offset::Absolute(n) => {
-                    #[allow(clippy::cast_possible_truncation)]
                     let rel = abs_to_rel(self.events.len(), n);
                     match rel {
                         Some(rel) => self.scoll_offset = Some(Offset::Relative(rel)),
@@ -182,7 +182,6 @@ impl Room {
                     }
                 }
                 Offset::Relative(n) => {
-                    #[allow(clippy::cast_possible_truncation)]
                     let event_count = rel_to_abs(self.events.len(), n.get());
                     let abs = event_count - n.get().min(event_count);
                     if abs == 0 {
@@ -192,7 +191,6 @@ impl Room {
                     }
                 }
             },
-            #[allow(clippy::cast_possible_truncation)]
             None => {
                 self.scoll_offset = Some(Offset::Absolute(
                     (self.events.len() as u32).saturating_sub(1),

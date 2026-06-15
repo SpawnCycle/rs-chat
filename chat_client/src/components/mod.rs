@@ -1,5 +1,6 @@
 mod context;
 mod log_view;
+mod popup;
 mod root;
 
 use std::fmt::Debug;
@@ -42,7 +43,7 @@ impl EventResult {
 
     #[must_use]
     pub fn pop_component() -> Self {
-        Self::Consumed(Some(AppAction::PopComponent))
+        Self::Consumed(Some(AppAction::PopupComponent))
     }
 
     #[must_use]
@@ -73,6 +74,6 @@ pub enum AppAction {
     PushComponent(Box<dyn Component>),
     /// Removes the last component from the stack,
     /// quits the screen if the current component was the last one
-    PopComponent,
+    PopupComponent,
     Quit,
 }

@@ -47,7 +47,7 @@ impl LogViewComponent {
                 key: Key::Char('l'),
                 ctrl: true,
                 ..
-            } => return EventResult::Consumed(Some(AppAction::PopComponent)),
+            } => return EventResult::Consumed(Some(AppAction::PopupComponent)),
             Input {
                 key: Key::Char(' '),
                 ..

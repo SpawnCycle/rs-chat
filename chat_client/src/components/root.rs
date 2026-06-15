@@ -12,7 +12,12 @@ use ratatui_textarea::{Input, Key, TextArea};
 
 use crate::{
     chat::{draw_room_events, draw_top_bar, top_block},
-    components::{AppContext, Component, EventResult, log_view::LogViewComponent},
+    components::{
+        AppContext, Component, EventResult,
+        log_view::LogViewComponent,
+        popup::{PopupComponent, PopupOptions},
+    },
+    consts::TUI_HELP_TEXT,
     room::Room,
 };
 
@@ -167,6 +172,26 @@ impl RootComponent<'_> {
             } => {
                 self.toggle_sidebar();
             }
+            Input {
+                key: Key::Char('h'),
+                ctrl: true,
+                ..
+            } => {
+                return EventResult::push_component(PopupComponent::new(
+                    TUI_HELP_TEXT,
+                    PopupOptions::new().no_pass(),
+                    |ev| {
+                        matches!(
+                            ev.clone().into(),
+                            Input {
+                                key: Key::Char('h'),
+                                ctrl: true,
+                                ..
+                            }
+                        )
+                    },
+                ));
+            }
             input => {
                 self.forward_input(input);
             }
@@ -252,6 +277,7 @@ impl RootComponent<'_> {
             .borders(borders)
             .merge_borders(MergeStrategy::Fuzzy);
         f.render_widget(&block, area);
+
         let area = block.inner(area);
 
         let chunks = layout().split(area);

@@ -10,7 +10,7 @@ pub struct Cli {
     pub args: GlobalArgs,
     /// Sets the action that needs to be done instead of joining a room
     #[command(subcommand)]
-    pub action: Option<AppAction>,
+    pub action: Option<ActionType>,
 }
 
 #[derive(Debug, Args)]
@@ -31,7 +31,7 @@ pub struct GlobalArgs {
 }
 
 #[derive(Debug, Clone, Subcommand)]
-pub enum AppAction {
+pub enum ActionType {
     Ls(LsArgs),
     Echo(EchoArgs),
 }

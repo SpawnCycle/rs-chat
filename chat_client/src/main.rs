@@ -2,7 +2,7 @@ use anyhow::Context;
 use chat_client::{
     actions::actions,
     app::{App, ExitReason},
-    config::{self, AppAction, AppConfig, logging},
+    config::{self, ActionType, AppConfig, logging},
     consts::CHANNEL_BUFFER_SIZE,
     start_event_poller, start_tick_poller,
 };
@@ -23,7 +23,7 @@ fn main() -> anyhow::Result<()> {
         .inspect_err(|err| log::error!("{err}"))
 }
 
-async fn app_entry_point(config: AppConfig, action: Option<AppAction>) -> anyhow::Result<()> {
+async fn app_entry_point(config: AppConfig, action: Option<ActionType>) -> anyhow::Result<()> {
     if let Some(action) = action {
         actions(config, action).await?;
 
@@ -39,12 +39,12 @@ async fn app_entry_point(config: AppConfig, action: Option<AppAction>) -> anyhow
 
     let mut terminal = ratatui::init();
 
-    app.exit_because(anyhow::anyhow!("Test"));
-
     while !app.should_quit() {
-        terminal.draw(|f| {
+        if let Err(err) = terminal.draw(|f| {
             app.render(f);
-        })?;
+        }) {
+            app.exit_because(err.into());
+        }
         if let Some(ev) = rx.recv().await {
             app.handle_event(ev);
         } else {

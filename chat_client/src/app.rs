@@ -99,17 +99,17 @@ impl App {
         let screen = screen_stack
             .last_mut()
             .expect("The stack should have at least 1 element");
-        let mut pending_actions = Vec::new();
 
         for component in screen.iter_mut().rev() {
             let res = component.handle_event(event, context);
 
-            if let EventResult::Consumed(Some(action)) = res {
-                pending_actions.push(action);
+            if let EventResult::Consumed(res) = res {
+                if let Some(action) = res {
+                    self.process_action(action);
+                }
+                break;
             }
         }
-
-        self.process_actions(pending_actions);
     }
 
     pub fn quit(&mut self) {
@@ -139,15 +139,13 @@ impl App {
         self.exit_reason = Some(ExitReason::from(err));
     }
 
-    fn process_actions(&mut self, actions: Vec<AppAction>) {
-        for action in actions {
-            match action {
-                AppAction::PushScreen(screen) => self.push_screen(screen),
-                AppAction::PopScreen => self.pop_screen(),
-                AppAction::PushComponent(component) => self.push_component(component),
-                AppAction::PopComponent => self.pop_component(),
-                AppAction::Quit => self.exit_reason = Some(ExitReason::default()),
-            }
+    fn process_action(&mut self, action: AppAction) {
+        match action {
+            AppAction::PushScreen(screen) => self.push_screen(screen),
+            AppAction::PopScreen => self.pop_screen(),
+            AppAction::PushComponent(component) => self.push_component(component),
+            AppAction::PopupComponent => self.pop_component(),
+            AppAction::Quit => self.exit_reason = Some(ExitReason::default()),
         }
     }
 
@@ -156,11 +154,18 @@ impl App {
     }
 
     fn pop_component(&mut self) {
-        let screen = self.current_screen_mut();
+        let Self {
+            context,
+            screen_stack,
+            ..
+        } = self;
+        let screen = screen_stack
+            .last_mut()
+            .expect("The stack should have at least 1 element");
 
         if screen.len() > 1 {
             if let Some(mut component) = screen.pop() {
-                component.before_quit(&mut self.context);
+                component.before_quit(context);
             }
         } else {
             self.pop_screen();

@@ -15,7 +15,17 @@ pub mod types;
 
 pub use discovery::Discovery;
 pub use types::{ClientMessage, Message, ServerMessage, User};
+#[cfg(feature = "ws_conn")]
 pub use ws_connection::WsConnection;
+
+/// Basically a wrapper around [`include_str!`],
+/// where the base is `$CARGO_MANIFEST_DIR` instead of cwd
+#[macro_export]
+macro_rules! text_resource {
+    ($file:expr $(,)?) => {
+        include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $file))
+    };
+}
 
 /// Gives back the compiled Version of the lib crate
 /// Useful for Syncing the avalable comm versions

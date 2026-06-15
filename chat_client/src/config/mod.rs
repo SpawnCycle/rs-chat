@@ -17,7 +17,7 @@ use std::{fs, path::PathBuf, process};
 
 /// Returns the app config as well as the app action (if any)
 #[must_use]
-pub fn init() -> (AppConfig, Option<AppAction>) {
+pub fn init() -> (AppConfig, Option<ActionType>) {
     let cli = Cli::parse();
     handle_flags(&cli);
 
