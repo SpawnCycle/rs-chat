@@ -2,6 +2,7 @@
 
 ## Planned Features:
 
+- [ ] Query parameters for rooms (e.g. set initial name)
 - [ ] Versioning
 - [ ] Actual profiles
 - [ ] Command line argument support

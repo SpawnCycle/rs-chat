@@ -1,8 +1,7 @@
 use anyhow::Context;
 use chat_client::{
-    AppEvent,
     actions::actions,
-    app::App,
+    app::{App, ExitReason},
     config::{self, AppAction, AppConfig, logging},
     consts::CHANNEL_BUFFER_SIZE,
     start_event_poller, start_tick_poller,
@@ -10,7 +9,7 @@ use chat_client::{
 use tokio::sync::mpsc;
 
 fn main() -> anyhow::Result<()> {
-    // have to initialize this before logging
+    // We have to initialize this before logging
     // or it will pollute the logs with the help messages
     let (config, cli) = config::init();
     logging::setup()?;
@@ -40,19 +39,17 @@ async fn app_entry_point(config: AppConfig, action: Option<AppAction>) -> anyhow
 
     let mut terminal = ratatui::init();
 
+    app.exit_because(anyhow::anyhow!("Test"));
+
     while !app.should_quit() {
         terminal.draw(|f| {
             app.render(f);
         })?;
-        match rx.recv().await {
-            Some(AppEvent::Tick) => app.update(),
-            Some(AppEvent::Event(ev)) => app.handle_event(&ev),
-            Some(AppEvent::Error(err)) => {
-                log::error!("There was an error in one of the background tasks: {err}");
-                break;
-            }
-            // Both channels somehow broke, just exit
-            None => break,
+        if let Some(ev) = rx.recv().await {
+            app.handle_event(ev);
+        } else {
+            app.exit_because(anyhow::anyhow!("Event channel broke"));
+            break;
         }
     }
 
@@ -62,6 +59,26 @@ async fn app_entry_point(config: AppConfig, action: Option<AppAction>) -> anyhow
     ratatui::restore();
 
     app.quit();
+
+    #[allow(
+        clippy::print_stderr,
+        reason = "we're reporing an error with the terminal in a restored state"
+    )]
+    if let Some(reason) = app.exit_reason() {
+        match reason {
+            ExitReason::BackgroundError(err) => {
+                eprintln!("Exited because background process returned: {err}");
+            }
+            ExitReason::FatalError(err) => {
+                eprintln!("Exited because of a fatal error: {err}");
+            }
+            ExitReason::UserAction => {
+                // No reason to report an exit initialized by the user
+            }
+        }
+    } else {
+        eprintln!("Why did we exit?");
+    }
 
     Ok(())
 }

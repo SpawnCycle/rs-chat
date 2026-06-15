@@ -1,4 +1,4 @@
-use std::{sync::LazyLock, time::Duration};
+use std::{num::NonZero, sync::LazyLock, time::Duration};
 
 use rustrict::{ContextProcessingOptions, ContextRateLimitOptions};
 
@@ -13,5 +13,6 @@ pub static CONTEXT_OPTS: LazyLock<ContextProcessingOptions> =
             ..Default::default()
         }),
         trim_whitespace: true,
+        character_limit: NonZero::new(200),
         ..Default::default()
     });

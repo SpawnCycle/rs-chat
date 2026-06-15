@@ -2,6 +2,7 @@ use crossterm::event::Event;
 use ratatui::Frame;
 
 use crate::{
+    AppError, AppEvent,
     components::{AppAction, AppContext, Component, EventResult, RootComponent},
     config::AppConfig,
 };
@@ -10,7 +11,27 @@ use crate::{
 pub struct App {
     screen_stack: Vec<Vec<Box<dyn Component>>>,
     context: AppContext,
-    should_quit: bool,
+    exit_reason: Option<ExitReason>,
+}
+
+#[derive(Debug, Default)]
+pub enum ExitReason {
+    #[default]
+    UserAction,
+    BackgroundError(AppError),
+    FatalError(anyhow::Error),
+}
+
+impl From<AppError> for ExitReason {
+    fn from(value: AppError) -> Self {
+        Self::BackgroundError(value)
+    }
+}
+
+impl From<anyhow::Error> for ExitReason {
+    fn from(value: anyhow::Error) -> Self {
+        Self::FatalError(value)
+    }
 }
 
 #[allow(unused)]
@@ -20,7 +41,7 @@ impl App {
         Self {
             screen_stack: vec![vec![Box::new(RootComponent::new())]],
             context: AppContext::new(config),
-            should_quit: false,
+            exit_reason: None,
         }
     }
 
@@ -45,6 +66,17 @@ impl App {
         }
     }
 
+    pub fn handle_event(&mut self, event: AppEvent) {
+        match event {
+            AppEvent::Tick => self.update(),
+            AppEvent::Event(event) => self.handle_input(&event),
+            AppEvent::Error(err) => {
+                log::error!("Background error: {err}");
+                self.exit_reason = Some(ExitReason::from(err));
+            }
+        }
+    }
+
     pub fn update(&mut self) {
         let context = &mut self.context;
 
@@ -57,8 +89,8 @@ impl App {
 
     /// # Panics
     ///
-    /// This function panics if there isn't a screen in the screen stack
-    pub fn handle_event(&mut self, event: &Event) {
+    /// This function panics if there isn't a screen on the screen stack
+    pub fn handle_input(&mut self, event: &Event) {
         let Self {
             context,
             screen_stack,
@@ -92,7 +124,19 @@ impl App {
 
     #[must_use]
     pub fn should_quit(&self) -> bool {
-        self.should_quit
+        self.exit_reason.is_some()
+    }
+
+    /// Returns the reason for exiting the app
+    ///
+    /// Returns `None` if called before the app would exit
+    #[must_use]
+    pub fn exit_reason(&self) -> Option<&ExitReason> {
+        self.exit_reason.as_ref()
+    }
+
+    pub fn exit_because(&mut self, err: anyhow::Error) {
+        self.exit_reason = Some(ExitReason::from(err));
     }
 
     fn process_actions(&mut self, actions: Vec<AppAction>) {
@@ -102,7 +146,7 @@ impl App {
                 AppAction::PopScreen => self.pop_screen(),
                 AppAction::PushComponent(component) => self.push_component(component),
                 AppAction::PopComponent => self.pop_component(),
-                AppAction::Quit => self.should_quit = true,
+                AppAction::Quit => self.exit_reason = Some(ExitReason::default()),
             }
         }
     }
@@ -135,7 +179,7 @@ impl App {
                 }
             }
         } else {
-            self.should_quit = true;
+            self.exit_reason = Some(ExitReason::default());
         }
     }
 
