@@ -52,7 +52,8 @@ impl App {
     /// This function errors if there was a problem during the setup of various mock features,
     /// usually it's a network error
     pub async fn mock_unimplemented(&mut self) -> anyhow::Result<()> {
-        self.context.join_room("default").await?;
+        let default_room = self.context.config.web.default_room.clone();
+        self.context.join_room(&default_room).await?;
 
         Ok(())
     }
@@ -66,10 +67,13 @@ impl App {
         }
     }
 
-    pub fn handle_event(&mut self, event: AppEvent) {
+    /// This function may be async if the event triggers an action that is async
+    pub async fn handle_event(&mut self, event: AppEvent) {
         match event {
-            AppEvent::Tick => self.update(),
-            AppEvent::Event(event) => self.handle_input(&event),
+            AppEvent::Tick => {
+                self.update();
+            }
+            AppEvent::Event(event) => self.handle_input(&event).await,
             AppEvent::Error(err) => {
                 log::error!("Background error: {err}");
                 self.exit_reason = Some(ExitReason::from(err));
@@ -90,7 +94,7 @@ impl App {
     /// # Panics
     ///
     /// This function panics if there isn't a screen on the screen stack
-    pub fn handle_input(&mut self, event: &Event) {
+    pub async fn handle_input(&mut self, event: &Event) {
         let Self {
             context,
             screen_stack,
@@ -105,7 +109,7 @@ impl App {
 
             if let EventResult::Consumed(res) = res {
                 if let Some(action) = res {
-                    self.process_action(action);
+                    self.process_action(action).await;
                 }
                 break;
             }
@@ -139,12 +143,25 @@ impl App {
         self.exit_reason = Some(ExitReason::from(err));
     }
 
-    fn process_action(&mut self, action: AppAction) {
+    async fn process_actions(&mut self, actions: Vec<AppAction>) {
+        for action in actions {
+            self.process_action(action).await;
+        }
+    }
+
+    async fn process_action(&mut self, action: AppAction) {
         match action {
+            AppAction::Batch(actions) => {
+                // The `Box::pin` is needed because this is a possibly infinite recusive call
+                Box::pin(self.process_actions(actions)).await;
+            }
             AppAction::PushScreen(screen) => self.push_screen(screen),
             AppAction::PopScreen => self.pop_screen(),
             AppAction::PushComponent(component) => self.push_component(component),
-            AppAction::PopupComponent => self.pop_component(),
+            AppAction::PopComponent => self.pop_component(),
+            AppAction::JoinRoom(name) => {
+                self.context.join_room(&name).await;
+            }
             AppAction::Quit => self.exit_reason = Some(ExitReason::default()),
         }
     }

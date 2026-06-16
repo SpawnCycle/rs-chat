@@ -4,8 +4,9 @@ use crossterm::event::Event;
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect, Spacing},
+    style::Style,
     symbols::merge::MergeStrategy,
-    text::Text,
+    text::{Line, Text},
     widgets::{Block, Borders, Clear, Paragraph},
 };
 use ratatui_textarea::{Input, Key, TextArea};
@@ -16,8 +17,10 @@ use crate::{
         AppContext, Component, EventResult,
         log_view::LogViewComponent,
         popup::{PopupComponent, PopupOptions},
+        room_join::RoomJoinComponent,
     },
     consts::TUI_HELP_TEXT,
+    helper::text_area,
     room::Room,
 };
 
@@ -34,20 +37,25 @@ impl Default for RootComponent<'_> {
     }
 }
 
-fn text_area<'a>() -> TextArea<'a> {
-    let mut input = TextArea::new(vec![]);
-    input.set_tab_length(2);
-    input.set_max_histories(0);
-    input.set_block(Block::default().borders(Borders::ALL));
-    input
-}
-
 fn layout() -> Layout {
     Layout::default().constraints([
         Constraint::Length(2),
         Constraint::Min(1),
         Constraint::Length(3),
     ])
+}
+
+fn help_popup() -> PopupComponent {
+    PopupComponent::new(TUI_HELP_TEXT, PopupOptions::new().no_pass(), |ev| {
+        matches!(
+            ev.clone().into(),
+            Input {
+                key: Key::Char('h'),
+                ctrl: true,
+                ..
+            }
+        )
+    })
 }
 
 /// Specifies the active text area
@@ -177,21 +185,13 @@ impl RootComponent<'_> {
                 ctrl: true,
                 ..
             } => {
-                return EventResult::push_component(PopupComponent::new(
-                    TUI_HELP_TEXT,
-                    PopupOptions::new().no_pass(),
-                    |ev| {
-                        matches!(
-                            ev.clone().into(),
-                            Input {
-                                key: Key::Char('h'),
-                                ctrl: true,
-                                ..
-                            }
-                        )
-                    },
-                ));
+                return EventResult::push_component(help_popup());
             }
+            Input {
+                key: Key::Char('r'),
+                ctrl: true,
+                ..
+            } => return EventResult::push_component(RoomJoinComponent::new()),
             input => {
                 self.forward_input(input);
             }
@@ -202,13 +202,11 @@ impl RootComponent<'_> {
 
     /// # Errors
     ///
-    /// This function returns the Errors produced by `reqwest` client
+    /// This function returns the Error produced by the `reqwest` client
     ///
     /// # Panics
     ///
     /// This function panics if the url can't be joined
-    ///
-    /// TODO: make this create a new modal which will dispatch the actual room join
     pub async fn join_room(
         &mut self,
         ctx: &mut AppContext,
@@ -257,8 +255,22 @@ impl RootComponent<'_> {
         );
         f.render_widget(title, title_area);
 
+        let current_room = ctx.current_room_name();
         let room_area = y_areas[1];
-        let rooms = ctx.rooms.keys().map(String::as_str).collect::<Text>();
+        let rooms = ctx
+            .rooms
+            .keys()
+            .map(String::as_str)
+            .map(|s| {
+                let mut style = Style::new();
+                if let Some(room) = current_room
+                    && room == s
+                {
+                    style = style.blue();
+                }
+                Line::from(s).style(style)
+            })
+            .collect::<Text>();
         let rooms = Paragraph::new(rooms).block(
             Block::new()
                 .borders(Borders::RIGHT)

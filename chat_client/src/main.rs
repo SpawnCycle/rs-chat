@@ -46,7 +46,7 @@ async fn app_entry_point(config: AppConfig, action: Option<ActionType>) -> anyho
             app.exit_because(err.into());
         }
         if let Some(ev) = rx.recv().await {
-            app.handle_event(ev);
+            app.handle_event(ev).await;
         } else {
             app.exit_because(anyhow::anyhow!("Event channel broke"));
             break;

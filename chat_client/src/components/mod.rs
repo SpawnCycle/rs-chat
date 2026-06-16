@@ -1,6 +1,7 @@
 mod context;
 mod log_view;
 mod popup;
+mod room_join;
 mod root;
 
 use std::fmt::Debug;
@@ -26,29 +27,39 @@ pub enum EventResult {
 }
 
 impl EventResult {
+    pub fn batch(actions: impl IntoIterator<Item = AppAction>) -> Self {
+        Self::Consumed(Some(AppAction::batch(actions)))
+    }
+
+    #[allow(clippy::needless_pass_by_value)]
+    #[must_use]
+    pub fn join_room(name: impl ToString) -> Self {
+        Self::Consumed(Some(AppAction::join_room(name)))
+    }
+
     #[must_use]
     pub fn push_screen(screen: impl Component + 'static) -> Self {
-        Self::Consumed(Some(AppAction::PushScreen(Box::new(screen))))
+        Self::Consumed(Some(AppAction::push_screen(screen)))
     }
 
     #[must_use]
     pub fn pop_screen() -> Self {
-        Self::Consumed(Some(AppAction::PopScreen))
+        Self::Consumed(Some(AppAction::pop_screen()))
     }
 
     #[must_use]
-    pub fn push_component(screen: impl Component + 'static) -> Self {
-        Self::Consumed(Some(AppAction::PushComponent(Box::new(screen))))
+    pub fn push_component(component: impl Component + 'static) -> Self {
+        Self::Consumed(Some(AppAction::push_component(component)))
     }
 
     #[must_use]
     pub fn pop_component() -> Self {
-        Self::Consumed(Some(AppAction::PopupComponent))
+        Self::Consumed(Some(AppAction::pop_component()))
     }
 
     #[must_use]
     pub fn quit() -> Self {
-        Self::Consumed(Some(AppAction::Quit))
+        Self::Consumed(Some(AppAction::quit()))
     }
 
     #[must_use]
@@ -64,6 +75,7 @@ impl EventResult {
 
 #[derive(Debug)]
 pub enum AppAction {
+    Batch(Vec<AppAction>),
     /// Adds a new screen and switches to it
     PushScreen(Box<dyn Component>),
     /// Removes the last screen from the stack,
@@ -74,6 +86,45 @@ pub enum AppAction {
     PushComponent(Box<dyn Component>),
     /// Removes the last component from the stack,
     /// quits the screen if the current component was the last one
-    PopupComponent,
+    PopComponent,
+    /// Tries to join the room with the given name
+    JoinRoom(String),
     Quit,
+}
+
+impl AppAction {
+    pub fn batch(actions: impl IntoIterator<Item = AppAction>) -> Self {
+        AppAction::Batch(actions.into_iter().collect())
+    }
+
+    #[allow(clippy::needless_pass_by_value)]
+    #[must_use]
+    pub fn join_room(name: impl ToString) -> Self {
+        AppAction::JoinRoom(name.to_string())
+    }
+
+    #[must_use]
+    pub fn push_screen(screen: impl Component + 'static) -> Self {
+        AppAction::PushScreen(Box::new(screen))
+    }
+
+    #[must_use]
+    pub fn pop_screen() -> Self {
+        AppAction::PopScreen
+    }
+
+    #[must_use]
+    pub fn push_component(screen: impl Component + 'static) -> Self {
+        AppAction::PushComponent(Box::new(screen))
+    }
+
+    #[must_use]
+    pub fn pop_component() -> Self {
+        AppAction::PopComponent
+    }
+
+    #[must_use]
+    pub fn quit() -> Self {
+        AppAction::Quit
+    }
 }

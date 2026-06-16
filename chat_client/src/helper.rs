@@ -1,3 +1,5 @@
+use ratatui::widgets::{Block, Borders};
+use ratatui_textarea::TextArea;
 use reqwest::Client;
 use std::sync::mpsc::sync_channel;
 use tokio::sync::mpsc::channel;
@@ -11,6 +13,14 @@ use crate::{
     room::Room,
     ws_handler::{WsAction, WsEvent, WsHandler},
 };
+
+pub fn text_area<'a>() -> TextArea<'a> {
+    let mut input = TextArea::new(vec![]);
+    input.set_tab_length(2);
+    input.set_max_histories(0);
+    input.set_block(Block::default().borders(Borders::ALL));
+    input
+}
 
 /// # Errors
 ///

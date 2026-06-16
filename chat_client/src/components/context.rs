@@ -71,8 +71,13 @@ impl AppContext {
     #[must_use]
     pub fn current_room(&self) -> Option<&Room> {
         self.current_room_name
-            .clone()
-            .and_then(|r| self.rooms.get(&r))
+            .as_ref()
+            .and_then(|r| self.rooms.get(r))
+    }
+
+    #[must_use]
+    pub fn current_room_name(&self) -> Option<&str> {
+        self.current_room_name.as_deref()
     }
 
     pub fn current_room_mut(&mut self) -> Option<&mut Room> {
