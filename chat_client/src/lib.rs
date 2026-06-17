@@ -1,10 +1,10 @@
-pub mod actions;
 pub mod app;
 pub mod components;
 pub mod config;
 pub mod consts;
 pub mod event;
 
+mod actions;
 mod chat;
 mod helper;
 mod logs;
@@ -19,6 +19,8 @@ use thiserror::Error;
 use tokio::{sync::mpsc::Sender, task::JoinHandle};
 
 use crate::consts::{POLL_DURATION, TICK_DURATION};
+
+pub use crate::actions::actions;
 
 #[derive(Debug)]
 pub enum AppEvent {

@@ -1,6 +1,6 @@
-use futures::SinkExt;
-use futures::{Sink, Stream, stream::FusedStream};
 use std::{collections::VecDeque, task::Poll};
+
+use futures::{Sink, SinkExt, Stream, stream::FusedStream};
 use tokio::sync::mpsc::{Receiver, Sender, channel};
 use tokio_tungstenite::tungstenite::{Error, Message, protocol::CloseFrame};
 

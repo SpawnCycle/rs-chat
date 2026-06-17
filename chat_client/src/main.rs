@@ -1,12 +1,13 @@
 use anyhow::Context;
+use tokio::sync::mpsc;
+
 use chat_client::{
-    actions::actions,
+    actions,
     app::{App, ExitReason},
     config::{self, ActionType, AppConfig, logging},
     consts::CHANNEL_BUFFER_SIZE,
     start_event_poller, start_tick_poller,
 };
-use tokio::sync::mpsc;
 
 fn main() -> anyhow::Result<()> {
     // We have to initialize this before logging

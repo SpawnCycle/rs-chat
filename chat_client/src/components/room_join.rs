@@ -9,11 +9,11 @@ use ratatui_textarea::{Input, Key, TextArea};
 use crate::components::{AppAction, Component, EventResult};
 
 #[derive(Debug)]
-pub struct RoomJoinComponent<'a> {
+pub struct RoomJoinModal<'a> {
     message_field: TextArea<'a>,
 }
 
-impl RoomJoinComponent<'_> {
+impl RoomJoinModal<'_> {
     pub fn new() -> Self {
         Self {
             message_field: TextArea::new(Vec::new()),
@@ -21,7 +21,7 @@ impl RoomJoinComponent<'_> {
     }
 }
 
-impl Component for RoomJoinComponent<'_> {
+impl Component for RoomJoinModal<'_> {
     fn handle_event(&mut self, event: &Event, _ctx: &mut super::AppContext) -> super::EventResult {
         match event.clone().into() {
             Input {
@@ -38,7 +38,12 @@ impl Component for RoomJoinComponent<'_> {
                     AppAction::pop_component(),
                 ]);
             }
-            Input { key: Key::Esc, .. } => {
+            Input {
+                key: Key::Char('r'),
+                ctrl: true,
+                ..
+            }
+            | Input { key: Key::Esc, .. } => {
                 return EventResult::pop_component();
             }
             _ => {

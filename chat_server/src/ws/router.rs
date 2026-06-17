@@ -1,5 +1,6 @@
-use axum::{Router, routing::get};
 use std::{collections::HashMap, sync::Arc};
+
+use axum::{Router, routing::get};
 use tokio::sync::Mutex;
 
 use crate::ws::{

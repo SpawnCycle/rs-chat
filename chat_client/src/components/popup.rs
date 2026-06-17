@@ -1,3 +1,5 @@
+use std::fmt::{self, Debug};
+
 use crossterm::event::Event;
 use ratatui::{
     layout::Constraint,
@@ -8,7 +10,7 @@ use ratatui_textarea::{Input, Key};
 
 use crate::components::{AppContext, Component, EventResult};
 
-pub struct PopupComponent {
+pub struct Popup {
     content: String,
     extra_toggle: Box<dyn Fn(&Event) -> bool>,
     /// scroll compared to the top
@@ -16,8 +18,8 @@ pub struct PopupComponent {
     options: PopupOptions,
 }
 
-impl std::fmt::Debug for PopupComponent {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Debug for Popup {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PopupComponent")
             .field("content", &self.content)
             .field("extra_toggle", &"<ExtraToggle>")
@@ -73,7 +75,7 @@ impl PopupOptions {
     }
 }
 
-impl PopupComponent {
+impl Popup {
     pub fn new(
         content: &(impl ToString + ?Sized),
         options: PopupOptions,
@@ -88,7 +90,7 @@ impl PopupComponent {
     }
 }
 
-impl Component for PopupComponent {
+impl Component for Popup {
     fn handle_event(&mut self, event: &Event, _ctx: &mut AppContext) -> super::EventResult {
         match event.clone().into() {
             Input { key: Key::Esc, .. } => {

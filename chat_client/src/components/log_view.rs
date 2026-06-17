@@ -1,3 +1,5 @@
+use std::fmt::{self, Debug};
+
 use crossterm::event::Event;
 use ratatui::{Frame, layout::Rect};
 use ratatui_textarea::{Input, Key};
@@ -8,19 +10,19 @@ use crate::{
     logs::draw_logs,
 };
 
-pub struct LogViewComponent {
+pub struct LogView {
     logger_state: tui_logger::TuiWidgetState,
 }
 
-impl std::fmt::Debug for LogViewComponent {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Debug for LogView {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("LogViewComponent")
             .field("logger_state", &"<LoggerState>")
             .finish()
     }
 }
 
-impl Component for LogViewComponent {
+impl Component for LogView {
     fn handle_event(&mut self, event: &Event, _ctx: &mut AppContext) -> EventResult {
         self.handle_log_input(event.clone())
     }
@@ -34,7 +36,7 @@ impl Component for LogViewComponent {
     fn before_quit(&mut self, _ctx: &mut AppContext) {}
 }
 
-impl LogViewComponent {
+impl LogView {
     pub fn new() -> Self {
         Self {
             logger_state: tui_logger::TuiWidgetState::new(),

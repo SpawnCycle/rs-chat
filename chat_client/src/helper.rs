@@ -1,7 +1,8 @@
+use std::sync::mpsc::sync_channel;
+
 use ratatui::widgets::{Block, Borders};
 use ratatui_textarea::TextArea;
 use reqwest::Client;
-use std::sync::mpsc::sync_channel;
 use tokio::sync::mpsc::channel;
 use url::Url;
 use uuid::Uuid;

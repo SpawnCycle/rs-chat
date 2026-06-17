@@ -10,14 +10,29 @@ use crossterm::event::Event;
 use ratatui::{Frame, layout::Rect};
 
 pub use context::AppContext;
-pub use root::RootComponent;
+pub use root::Root;
 
-pub trait Component: Debug {
+pub type BoxedComponent = Box<dyn Component>;
+
+pub trait Component {
+    // functions that should be implemented
+
     fn handle_event(&mut self, event: &Event, ctx: &mut AppContext) -> EventResult;
     fn render(&self, f: &mut Frame<'_>, area: Rect, ctx: &AppContext);
-    fn update(&self, ctx: &mut AppContext);
 
-    fn before_quit(&mut self, ctx: &mut AppContext);
+    // functions that can be implemented
+
+    fn update(&self, _ctx: &mut AppContext) {}
+    fn before_quit(&mut self, _ctx: &mut AppContext) {}
+
+    // functions that shouldn't be overridden
+
+    fn boxed(self) -> BoxedComponent
+    where
+        Self: Sized + 'static,
+    {
+        Box::new(self)
+    }
 }
 
 #[derive(Debug)]
@@ -73,23 +88,36 @@ impl EventResult {
     }
 }
 
-#[derive(Debug)]
 pub enum AppAction {
     Batch(Vec<AppAction>),
     /// Adds a new screen and switches to it
-    PushScreen(Box<dyn Component>),
+    PushScreen(BoxedComponent),
     /// Removes the last screen from the stack,
     /// quits if the current one was the last one
     PopScreen,
     /// Adds a new component to the render stack,
     /// good for popups and modals
-    PushComponent(Box<dyn Component>),
+    PushComponent(BoxedComponent),
     /// Removes the last component from the stack,
     /// quits the screen if the current component was the last one
     PopComponent,
     /// Tries to join the room with the given name
     JoinRoom(String),
     Quit,
+}
+
+impl Debug for AppAction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Batch(arg0) => f.debug_tuple("Batch").field(arg0).finish(),
+            Self::PushScreen(_) => f.debug_tuple("<PushScreen>").finish(),
+            Self::PopScreen => write!(f, "PopScreen"),
+            Self::PushComponent(_) => f.debug_tuple("<PushComponent>").finish(),
+            Self::PopComponent => write!(f, "PopComponent"),
+            Self::JoinRoom(arg0) => f.debug_tuple("JoinRoom").field(arg0).finish(),
+            Self::Quit => write!(f, "Quit"),
+        }
+    }
 }
 
 impl AppAction {

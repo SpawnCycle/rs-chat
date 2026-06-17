@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-
 use std::{sync::Arc, time::Duration};
+
+use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
+use uuid::Uuid;
 
 // use crate::ratatui_span::FindUser;
 

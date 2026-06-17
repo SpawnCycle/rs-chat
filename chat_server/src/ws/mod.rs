@@ -1,6 +1,7 @@
+use std::{collections::HashMap, sync::Arc};
+
 use chat_lib::types::ServerMessage;
 use room::Room;
-use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{Mutex, broadcast};
 
 use crate::ws::room::RoomComponents;

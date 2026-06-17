@@ -1,10 +1,11 @@
-use anyhow::{Context, anyhow};
-use chat_lib::{prelude::*, ws_connection::WsConnection};
-use futures::{SinkExt, StreamExt};
 use std::{
     sync::mpsc::{Receiver, TryRecvError},
     time::Duration,
 };
+
+use anyhow::{Context, anyhow};
+use chat_lib::{prelude::*, ws_connection::WsConnection};
+use futures::{SinkExt, StreamExt};
 use tokio::sync::mpsc::Sender;
 use tokio_tungstenite::{connect_async, tungstenite};
 use url::Url;

@@ -11,9 +11,10 @@ pub mod logging;
 pub use args::*;
 pub use file::*;
 
+use std::{fs, path::PathBuf, process};
+
 use clap::Parser;
 use dirs::config_dir;
-use std::{fs, path::PathBuf, process};
 
 /// Returns the app config as well as the app action (if any)
 #[must_use]

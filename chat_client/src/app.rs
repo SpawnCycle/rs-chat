@@ -1,17 +1,28 @@
+use std::fmt::{self, Debug};
+
 use crossterm::event::Event;
 use ratatui::Frame;
 
 use crate::{
     AppError, AppEvent,
-    components::{AppAction, AppContext, Component, EventResult, RootComponent},
+    components::{AppAction, AppContext, BoxedComponent, Component, EventResult, Root},
     config::AppConfig,
 };
 
-#[derive(Debug)]
 pub struct App {
-    screen_stack: Vec<Vec<Box<dyn Component>>>,
+    screen_stack: Vec<Vec<BoxedComponent>>,
     context: AppContext,
     exit_reason: Option<ExitReason>,
+}
+
+impl Debug for App {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("App")
+            .field("screen_stack", &"<BoxedComponent>")
+            .field("context", &self.context)
+            .field("exit_reason", &self.exit_reason)
+            .finish()
+    }
 }
 
 #[derive(Debug, Default)]
@@ -39,7 +50,7 @@ impl App {
     #[must_use]
     pub fn new(config: AppConfig) -> Self {
         Self {
-            screen_stack: vec![vec![Box::new(RootComponent::new())]],
+            screen_stack: vec![vec![Box::new(Root::new())]],
             context: AppContext::new(config),
             exit_reason: None,
         }
@@ -166,7 +177,7 @@ impl App {
         }
     }
 
-    fn push_component(&mut self, component: Box<dyn Component>) {
+    fn push_component(&mut self, component: BoxedComponent) {
         self.current_screen_mut().push(component);
     }
 
@@ -189,7 +200,7 @@ impl App {
         }
     }
 
-    fn push_screen(&mut self, component: Box<dyn Component>) {
+    fn push_screen(&mut self, component: BoxedComponent) {
         self.screen_stack.push(vec![component]);
     }
 
@@ -209,13 +220,13 @@ impl App {
         self.current_screen_mut().push(Box::new(component));
     }
 
-    fn current_screen(&self) -> &Vec<Box<dyn Component>> {
+    fn current_screen(&self) -> &Vec<BoxedComponent> {
         self.screen_stack
             .last()
             .expect("The screen stack should have at least 1 screen")
     }
 
-    fn current_screen_mut(&mut self) -> &mut Vec<Box<dyn Component>> {
+    fn current_screen_mut(&mut self) -> &mut Vec<BoxedComponent> {
         self.screen_stack
             .last_mut()
             .expect("The screen stack should have at least 1 screen")

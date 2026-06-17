@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 use crossterm::event::Event;
 use ratatui::{
     Frame,
@@ -15,9 +13,9 @@ use crate::{
     chat::{draw_room_events, draw_top_bar, top_block},
     components::{
         AppContext, Component, EventResult,
-        log_view::LogViewComponent,
-        popup::{PopupComponent, PopupOptions},
-        room_join::RoomJoinComponent,
+        log_view::LogView,
+        popup::{Popup, PopupOptions},
+        room_join::RoomJoinModal,
     },
     consts::TUI_HELP_TEXT,
     helper::text_area,
@@ -25,13 +23,13 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct RootComponent<'a> {
+pub struct Root<'a> {
     message_field: TextArea<'a>,
     active_text_area: Option<ActiveTextArea<'a>>,
     show_sidebar: bool,
 }
 
-impl Default for RootComponent<'_> {
+impl Default for Root<'_> {
     fn default() -> Self {
         Self::new()
     }
@@ -45,8 +43,8 @@ fn layout() -> Layout {
     ])
 }
 
-fn help_popup() -> PopupComponent {
-    PopupComponent::new(TUI_HELP_TEXT, PopupOptions::new().no_pass(), |ev| {
+fn help_popup() -> Popup {
+    Popup::new(TUI_HELP_TEXT, PopupOptions::new().no_pass(), |ev| {
         matches!(
             ev.clone().into(),
             Input {
@@ -75,7 +73,7 @@ impl ActiveTextArea<'_> {
     }
 }
 
-impl Component for RootComponent<'_> {
+impl Component for Root<'_> {
     fn handle_event(&mut self, event: &Event, ctx: &mut AppContext) -> EventResult {
         self.handle_chat_input(event.clone(), ctx)
     }
@@ -94,7 +92,7 @@ impl Component for RootComponent<'_> {
     }
 }
 
-impl RootComponent<'_> {
+impl Root<'_> {
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -171,7 +169,7 @@ impl RootComponent<'_> {
                 ctrl: true,
                 ..
             } => {
-                return EventResult::push_screen(LogViewComponent::new());
+                return EventResult::push_screen(LogView::new());
             }
             Input {
                 key: Key::Char('b'),
@@ -191,7 +189,7 @@ impl RootComponent<'_> {
                 key: Key::Char('r'),
                 ctrl: true,
                 ..
-            } => return EventResult::push_component(RoomJoinComponent::new()),
+            } => return EventResult::push_component(RoomJoinModal::new()),
             input => {
                 self.forward_input(input);
             }

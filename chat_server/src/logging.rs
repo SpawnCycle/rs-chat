@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use anyhow::Context;
 use dirs::data_dir;
 use log::LevelFilter;
@@ -7,7 +9,6 @@ use log4rs::{
     config::{Appender, Root},
     encode::pattern::PatternEncoder,
 };
-use std::path::PathBuf;
 
 pub fn setup() -> anyhow::Result<log4rs::Handle> {
     let log_file = {
