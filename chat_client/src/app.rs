@@ -119,7 +119,7 @@ impl App {
             let res = component.handle_event(event, context);
 
             if let EventResult::Consumed(res) = res {
-                if let Some(action) = res {
+                for action in res {
                     self.process_action(action).await;
                 }
                 break;
@@ -162,10 +162,6 @@ impl App {
 
     async fn process_action(&mut self, action: AppAction) {
         match action {
-            AppAction::Batch(actions) => {
-                // The `Box::pin` is needed because this is a possibly infinite recusive call
-                Box::pin(self.process_actions(actions)).await;
-            }
             AppAction::PushScreen(screen) => self.push_screen(screen),
             AppAction::PopScreen => self.pop_screen(),
             AppAction::PushComponent(component) => self.push_component(component),

@@ -37,49 +37,49 @@ pub trait Component {
 
 #[derive(Debug)]
 pub enum EventResult {
-    Consumed(Option<AppAction>),
+    Consumed(Vec<AppAction>),
     Ignored,
 }
 
 impl EventResult {
     pub fn batch(actions: impl IntoIterator<Item = AppAction>) -> Self {
-        Self::Consumed(Some(AppAction::batch(actions)))
+        Self::Consumed(actions.into_iter().collect())
     }
 
     #[allow(clippy::needless_pass_by_value)]
     #[must_use]
     pub fn join_room(name: impl ToString) -> Self {
-        Self::Consumed(Some(AppAction::join_room(name)))
+        Self::batch([AppAction::join_room(name)])
     }
 
     #[must_use]
     pub fn push_screen(screen: impl Component + 'static) -> Self {
-        Self::Consumed(Some(AppAction::push_screen(screen)))
+        Self::batch([AppAction::push_screen(screen)])
     }
 
     #[must_use]
     pub fn pop_screen() -> Self {
-        Self::Consumed(Some(AppAction::pop_screen()))
+        Self::batch([AppAction::pop_screen()])
     }
 
     #[must_use]
     pub fn push_component(component: impl Component + 'static) -> Self {
-        Self::Consumed(Some(AppAction::push_component(component)))
+        Self::batch([AppAction::push_component(component)])
     }
 
     #[must_use]
     pub fn pop_component() -> Self {
-        Self::Consumed(Some(AppAction::pop_component()))
+        Self::batch([AppAction::pop_component()])
     }
 
     #[must_use]
     pub fn quit() -> Self {
-        Self::Consumed(Some(AppAction::quit()))
+        Self::batch([AppAction::quit()])
     }
 
     #[must_use]
     pub fn consumed() -> Self {
-        Self::Consumed(None)
+        Self::batch([])
     }
 
     #[must_use]
@@ -89,7 +89,6 @@ impl EventResult {
 }
 
 pub enum AppAction {
-    Batch(Vec<AppAction>),
     /// Adds a new screen and switches to it
     PushScreen(BoxedComponent),
     /// Removes the last screen from the stack,
@@ -109,7 +108,6 @@ pub enum AppAction {
 impl Debug for AppAction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Batch(arg0) => f.debug_tuple("Batch").field(arg0).finish(),
             Self::PushScreen(_) => f.debug_tuple("<PushScreen>").finish(),
             Self::PopScreen => write!(f, "PopScreen"),
             Self::PushComponent(_) => f.debug_tuple("<PushComponent>").finish(),
@@ -121,8 +119,8 @@ impl Debug for AppAction {
 }
 
 impl AppAction {
-    pub fn batch(actions: impl IntoIterator<Item = AppAction>) -> Self {
-        AppAction::Batch(actions.into_iter().collect())
+    pub fn batch(actions: impl IntoIterator<Item = AppAction>) -> Vec<Self> {
+        actions.into_iter().collect()
     }
 
     #[allow(clippy::needless_pass_by_value)]

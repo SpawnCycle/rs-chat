@@ -6,7 +6,7 @@ use ratatui_textarea::{Input, Key};
 use tui_logger::TuiWidgetEvent;
 
 use crate::{
-    components::{AppAction, AppContext, Component, EventResult},
+    components::{AppContext, Component, EventResult},
     logs::draw_logs,
 };
 
@@ -49,7 +49,9 @@ impl LogView {
                 key: Key::Char('l'),
                 ctrl: true,
                 ..
-            } => return EventResult::Consumed(Some(AppAction::PopComponent)),
+            } => {
+                return EventResult::pop_component();
+            }
             Input {
                 key: Key::Char(' '),
                 ..
