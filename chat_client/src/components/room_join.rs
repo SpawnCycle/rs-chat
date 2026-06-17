@@ -8,6 +8,7 @@ use ratatui_textarea::{Input, Key, TextArea};
 
 use crate::components::{AppAction, Component, EventResult};
 
+/// TODO: make this better
 #[derive(Debug)]
 pub struct RoomJoinModal<'a> {
     message_field: TextArea<'a>,

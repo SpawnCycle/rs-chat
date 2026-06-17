@@ -38,6 +38,7 @@ pub enum ActionType {
 
 #[derive(Debug, Clone, Args)]
 pub struct LsArgs {
+    /// Outputs the active users as part of the ls output
     #[arg(short, long)]
     pub users: bool,
 }
