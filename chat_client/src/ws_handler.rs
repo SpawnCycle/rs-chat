@@ -184,6 +184,7 @@ impl WsHandler {
                     .await?;
             }
             WsAction::Quit => {
+                self.stream.flush().await?;
                 return Ok(true);
             }
             WsAction::ChangeName(name) => {

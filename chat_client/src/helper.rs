@@ -32,6 +32,7 @@ pub async fn connect_room(
     base_url: &Url,
     room_name: &str,
 ) -> anyhow::Result<(Room, tokio::task::JoinHandle<()>)> {
+    // TODO: cache the discovery result somewhere to avoid the delay the extra request introduces
     let (e_tx, e_rx) = channel::<WsEvent>(CHANNEL_BUFFER_SIZE);
     let (a_tx, a_rx) = sync_channel::<WsAction>(CHANNEL_BUFFER_SIZE);
 
