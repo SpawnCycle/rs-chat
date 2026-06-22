@@ -34,10 +34,18 @@ pub struct Room {
     name: String,
     tx: SyncSender<WsAction>,
     rx: Receiver<WsEvent>,
-    active: bool,
     /// # Action queue
     /// Where the key is the action and the value is when it was sent
     active_requests: HashMap<WsAction, Instant>,
+    state: RoomState,
+}
+
+#[derive(Debug)]
+pub enum RoomState {
+    Pending,
+    Active,
+    Quit,
+    Error(String),
 }
 
 impl Room {
@@ -51,13 +59,21 @@ impl Room {
             self_id: None,
             scoll_offset: None,
             name: name.to_string(),
-            active: true,
             active_requests: HashMap::new(),
+            state: RoomState::Pending,
+        }
+    }
+
+    pub fn get_error(&self) -> Option<&str> {
+        if let RoomState::Error(err) = &self.state {
+            Some(err)
+        } else {
+            None
         }
     }
 
     pub fn active(&self) -> bool {
-        self.active
+        matches!(self.state, RoomState::Active | RoomState::Pending)
     }
 
     pub fn users(&self) -> &HashMap<Uuid, User> {
@@ -111,7 +127,7 @@ impl Room {
 
     pub fn quit(&mut self) {
         log::info!("Quitting room {}", self.name);
-        self.active = false;
+        self.state = RoomState::Quit;
         self.send_action(WsAction::Quit);
     }
 
@@ -200,6 +216,8 @@ impl Room {
     }
 
     fn handle_event(&mut self, event: WsEvent) {
+        self.activate();
+
         match event {
             WsEvent::UserAdd(user) => {
                 self.add_user(user);
@@ -229,6 +247,9 @@ impl Room {
                 for user in users {
                     self.set_user(user);
                 }
+            }
+            WsEvent::Error(err) => {
+                self.error(err);
             }
         }
     }
@@ -304,5 +325,13 @@ impl Room {
 
     fn add_event(&mut self, ev: impl Into<RoomEvent>) {
         self.events.push(ev.into());
+    }
+
+    fn error(&mut self, err: String) {
+        self.state = RoomState::Error(err);
+    }
+
+    fn activate(&mut self) {
+        self.state = RoomState::Active;
     }
 }

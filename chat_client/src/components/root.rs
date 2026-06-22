@@ -19,7 +19,6 @@ use crate::{
     },
     consts::TUI_HELP_TEXT,
     helper::text_area,
-    room::Room,
 };
 
 #[derive(Debug)]
@@ -83,12 +82,11 @@ impl Component for Root<'_> {
     }
 
     fn update(&self, ctx: &mut AppContext) {
-        ctx.poll_room_events();
-        ctx.send_sync_requests();
+        ctx.update();
     }
 
     fn before_quit(&mut self, ctx: &mut AppContext) {
-        ctx.rooms.values_mut().for_each(Room::quit);
+        ctx.quit_all_rooms();
     }
 }
 
@@ -189,7 +187,10 @@ impl Root<'_> {
                 key: Key::Char('r'),
                 ctrl: true,
                 ..
-            } => return EventResult::push_component(RoomJoinModal::new()),
+            } => {
+                let url = ctx.config.web.url.clone();
+                return EventResult::push_component(RoomJoinModal::new(url));
+            }
             input => {
                 self.forward_input(input);
             }
@@ -198,19 +199,10 @@ impl Root<'_> {
         EventResult::consumed()
     }
 
-    /// # Errors
-    ///
-    /// This function returns the Error produced by the `reqwest` client
-    ///
-    /// # Panics
-    ///
-    /// This function panics if the url can't be joined
-    pub async fn join_room(
-        &mut self,
-        ctx: &mut AppContext,
-        room_name: &str,
-    ) -> anyhow::Result<tokio::task::JoinHandle<()>> {
-        ctx.join_room(room_name).await
+    pub fn join_room(&mut self, ctx: &mut AppContext, room_name: &str) -> anyhow::Result<()> {
+        ctx.join_room(ctx.config.web.url.clone(), room_name);
+
+        Ok(())
     }
 
     fn draw_chat(&self, f: &'_ mut Frame, area: Rect, ctx: &AppContext) {
@@ -219,7 +211,10 @@ impl Root<'_> {
             let max_room_name = ctx
                 .rooms
                 .keys()
-                .map(|r| r.chars().count())
+                .map(|r| {
+                    // TODO: think about how to display this better
+                    r.room_name.chars().count()
+                })
                 .max()
                 .unwrap_or(5) as u16;
             let side_width = (max_room_name + 1).max(15);
@@ -258,6 +253,7 @@ impl Root<'_> {
         let rooms = ctx
             .rooms
             .keys()
+            .map(|r| &r.room_name)
             .map(String::as_str)
             .map(|s| {
                 let mut style = Style::new();

@@ -10,6 +10,7 @@ mod helper;
 mod logs;
 mod requests;
 mod room;
+mod task;
 mod ws_handler;
 
 use std::io;

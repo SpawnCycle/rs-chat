@@ -1,6 +1,7 @@
-use std::time::Duration;
+use std::{sync::LazyLock, time::Duration};
 
 use chat_lib::text_resource;
+use reqwest::Client;
 
 /// The buffer size for the various channels (mpsc/broadcast)
 pub const CHANNEL_BUFFER_SIZE: usize = 128;
@@ -20,3 +21,5 @@ pub const WS_TIMEOUT_DURATION: Duration = Duration::from_millis(500);
 pub const ACTION_LIFETIME: Duration = Duration::from_millis(500);
 
 pub const TUI_HELP_TEXT: &str = text_resource!("../const_resources/tui_help.md");
+
+pub static CLIENT: LazyLock<Client> = LazyLock::new(|| Client::new());

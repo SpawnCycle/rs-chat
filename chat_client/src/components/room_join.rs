@@ -5,18 +5,22 @@ use ratatui::{
     widgets::Block,
 };
 use ratatui_textarea::{Input, Key, TextArea};
+use url::Url;
 
 use crate::components::{AppAction, Component, EventResult};
 
 /// TODO: make this better
 #[derive(Debug)]
 pub struct RoomJoinModal<'a> {
+    // TODO: don't do this, make a new text field instead
+    base_url: Url,
     message_field: TextArea<'a>,
 }
 
 impl RoomJoinModal<'_> {
-    pub fn new() -> Self {
+    pub fn new(url: Url) -> Self {
         Self {
+            base_url: url,
             message_field: TextArea::new(Vec::new()),
         }
     }
@@ -35,7 +39,7 @@ impl Component for RoomJoinModal<'_> {
             } => {
                 let input = self.message_field.lines()[0].trim();
                 return EventResult::batch([
-                    AppAction::join_room(input),
+                    AppAction::join_room(self.base_url.clone(), input),
                     AppAction::pop_component(),
                 ]);
             }

@@ -1,19 +1,39 @@
-use std::sync::mpsc::sync_channel;
+use std::{
+    fmt::{Debug, Display},
+    sync::mpsc::sync_channel,
+};
 
 use ratatui::widgets::{Block, Borders};
 use ratatui_textarea::TextArea;
-use reqwest::Client;
 use tokio::sync::mpsc::channel;
 use url::Url;
 use uuid::Uuid;
 
 use crate::{
     config::WebConfig,
-    consts::CHANNEL_BUFFER_SIZE,
+    consts::{CHANNEL_BUFFER_SIZE, CLIENT},
     requests::room_discovery,
     room::Room,
     ws_handler::{WsAction, WsEvent, WsHandler},
 };
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct RoomLocation {
+    pub url: Url,
+    pub room_name: String,
+}
+
+#[derive(Debug, Clone, Default)]
+pub enum FetchState<T, E>
+where
+    T: Clone + Debug,
+    E: Clone + Display + Debug,
+{
+    #[default]
+    Pending,
+    Value(T),
+    Error(E),
+}
 
 pub fn text_area<'a>() -> TextArea<'a> {
     let mut input = TextArea::new(vec![]);
@@ -23,29 +43,38 @@ pub fn text_area<'a>() -> TextArea<'a> {
     input
 }
 
+/// First tries to run a discover on `base_url`,
+///  and then connect to the web socket via `connect_room_ws` if the server is valid
+///
 /// # Errors
 ///
-/// This function errors if there was a problem during any of the web calls,
-/// be it an internet error or a parse one
+/// This function errors if there was an error during discovery
 pub async fn connect_room(
     config: WebConfig,
     base_url: &Url,
     room_name: &str,
 ) -> anyhow::Result<(Room, tokio::task::JoinHandle<()>)> {
-    // TODO: cache the discovery result somewhere to avoid the delay the extra request introduces
-    let (e_tx, e_rx) = channel::<WsEvent>(CHANNEL_BUFFER_SIZE);
-    let (a_tx, a_rx) = sync_channel::<WsAction>(CHANNEL_BUFFER_SIZE);
-
-    let client = Client::new();
-
-    let discovery = room_discovery(&client, base_url).await?;
+    let discovery = room_discovery(&CLIENT, base_url).await?;
 
     log::debug!("{base_url} - {discovery:?}");
 
+    Ok(connect_room_ws(config, base_url, room_name))
+}
+
+/// Connects to a room without checking if `base_url` houses a valid chat server
+pub fn connect_room_ws(
+    config: WebConfig,
+    base_url: &Url,
+    room_name: &str,
+) -> (Room, tokio::task::JoinHandle<()>) {
+    let (e_tx, e_rx) = channel::<WsEvent>(CHANNEL_BUFFER_SIZE);
+    let (a_tx, a_rx) = sync_channel::<WsAction>(CHANNEL_BUFFER_SIZE);
+
     let web_config = config.clone();
     let room_string = room_name.to_string();
+    let base_url = base_url.clone();
     let ws = tokio::spawn(async move {
-        let handler = WsHandler::new(e_tx, a_rx, web_config, room_string.clone())
+        let handler = WsHandler::new(e_tx, a_rx, web_config, room_string.clone(), base_url)
             .await
             .inspect_err(|err| log::error!("Fatal error during websocket connection: {err}"));
         log::debug!("Websocket handler for {room_string} started");
@@ -60,7 +89,7 @@ pub async fn connect_room(
         log::debug!("Websocket handler for {room_string} ended");
     });
 
-    Ok((Room::new(room_name, a_tx, e_rx), ws))
+    (Room::new(room_name, a_tx, e_rx), ws)
 }
 
 /// returns if the given event satisfies a given action (self id is required for actions related to self)

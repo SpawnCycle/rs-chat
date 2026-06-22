@@ -8,6 +8,7 @@ use std::fmt::Debug;
 
 use crossterm::event::Event;
 use ratatui::{Frame, layout::Rect};
+use url::Url;
 
 pub use context::AppContext;
 pub use root::Root;
@@ -48,8 +49,8 @@ impl EventResult {
 
     #[allow(clippy::needless_pass_by_value)]
     #[must_use]
-    pub fn join_room(name: impl ToString) -> Self {
-        Self::batch([AppAction::join_room(name)])
+    pub fn join_room(url: impl Into<Url>, name: impl ToString) -> Self {
+        Self::batch([AppAction::join_room(url, name)])
     }
 
     #[must_use]
@@ -101,7 +102,7 @@ pub enum AppAction {
     /// quits the screen if the current component was the last one
     PopComponent,
     /// Tries to join the room with the given name
-    JoinRoom(String),
+    JoinRoom(Url, String),
     Quit,
 }
 
@@ -112,7 +113,9 @@ impl Debug for AppAction {
             Self::PopScreen => write!(f, "PopScreen"),
             Self::PushComponent(_) => f.debug_tuple("<PushComponent>").finish(),
             Self::PopComponent => write!(f, "PopComponent"),
-            Self::JoinRoom(arg0) => f.debug_tuple("JoinRoom").field(arg0).finish(),
+            Self::JoinRoom(arg0, arg1) => {
+                f.debug_tuple("JoinRoom").field(arg0).field(arg1).finish()
+            }
             Self::Quit => write!(f, "Quit"),
         }
     }
@@ -125,8 +128,8 @@ impl AppAction {
 
     #[allow(clippy::needless_pass_by_value)]
     #[must_use]
-    pub fn join_room(name: impl ToString) -> Self {
-        AppAction::JoinRoom(name.to_string())
+    pub fn join_room(url: impl Into<Url>, name: impl ToString) -> Self {
+        AppAction::JoinRoom(url.into(), name.to_string())
     }
 
     #[must_use]

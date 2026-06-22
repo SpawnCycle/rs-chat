@@ -64,7 +64,8 @@ impl App {
     /// usually it's a network error
     pub async fn mock_unimplemented(&mut self) -> anyhow::Result<()> {
         let default_room = self.context.config.web.default_room.clone();
-        self.context.join_room(&default_room).await?;
+        let default_url = self.context.config.web.url.clone();
+        self.context.join_room(default_url, &default_room);
 
         Ok(())
     }
@@ -166,8 +167,8 @@ impl App {
             AppAction::PopScreen => self.pop_screen(),
             AppAction::PushComponent(component) => self.push_component(component),
             AppAction::PopComponent => self.pop_component(),
-            AppAction::JoinRoom(name) => {
-                self.context.join_room(&name).await;
+            AppAction::JoinRoom(url, name) => {
+                self.context.join_room(url, &name);
             }
             AppAction::Quit => self.exit_reason = Some(ExitReason::default()),
         }

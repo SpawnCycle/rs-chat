@@ -27,6 +27,8 @@ pub enum WsEvent {
     Message(Message),
     Banned(Duration, String),
     Quit,
+
+    Error(String),
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -44,6 +46,8 @@ pub enum WsAction {
 /// needs to be closed manually
 #[derive(Debug)]
 pub struct WsHandler {
+    #[allow(unused)]
+    config: WebConfig,
     stream: WsConnection,
     tx: Sender<WsEvent>,
     rx: Receiver<WsAction>,
@@ -60,11 +64,11 @@ impl WsHandler {
     pub async fn new(
         tx: Sender<WsEvent>,
         rx: Receiver<WsAction>,
-        cfg: WebConfig,
+        config: WebConfig,
         room: String,
+        mut url: Url,
     ) -> anyhow::Result<Self> {
         // TODO: Better error reporting/handling instread of just using anyhow
-        let mut url = cfg.url.clone();
         if url.scheme() == "https" {
             url.set_scheme("wss").expect("The url should be correct");
         } else {
@@ -85,7 +89,12 @@ impl WsHandler {
         }
         let stream = stream?;
 
-        Ok(Self { stream, tx, rx })
+        Ok(Self {
+            stream,
+            tx,
+            rx,
+            config,
+        })
     }
 
     async fn connect_websocket(cfg: &Url) -> anyhow::Result<WsConnection> {
