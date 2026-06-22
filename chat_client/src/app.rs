@@ -62,12 +62,10 @@ impl App {
     ///
     /// This function errors if there was a problem during the setup of various mock features,
     /// usually it's a network error
-    pub async fn mock_unimplemented(&mut self) -> anyhow::Result<()> {
+    pub fn mock_unimplemented(&mut self) {
         let default_room = self.context.config.web.default_room.clone();
         let default_url = self.context.config.web.url.clone();
         self.context.join_room(default_url, &default_room);
-
-        Ok(())
     }
 
     pub fn render(&self, f: &mut Frame<'_>) {
@@ -80,12 +78,12 @@ impl App {
     }
 
     /// This function may be async if the event triggers an action that is async
-    pub async fn handle_event(&mut self, event: AppEvent) {
+    pub fn handle_event(&mut self, event: AppEvent) {
         match event {
             AppEvent::Tick => {
                 self.update();
             }
-            AppEvent::Event(event) => self.handle_input(&event).await,
+            AppEvent::Event(event) => self.handle_input(&event),
             AppEvent::Error(err) => {
                 log::error!("Background error: {err}");
                 self.exit_reason = Some(ExitReason::from(err));
@@ -106,7 +104,7 @@ impl App {
     /// # Panics
     ///
     /// This function panics if there isn't a screen on the screen stack
-    pub async fn handle_input(&mut self, event: &Event) {
+    pub fn handle_input(&mut self, event: &Event) {
         let Self {
             context,
             screen_stack,
@@ -121,7 +119,7 @@ impl App {
 
             if let EventResult::Consumed(res) = res {
                 for action in res {
-                    self.process_action(action).await;
+                    self.process_action(action);
                 }
                 break;
             }
@@ -155,13 +153,13 @@ impl App {
         self.exit_reason = Some(ExitReason::from(err));
     }
 
-    async fn process_actions(&mut self, actions: Vec<AppAction>) {
+    fn process_actions(&mut self, actions: Vec<AppAction>) {
         for action in actions {
-            self.process_action(action).await;
+            self.process_action(action);
         }
     }
 
-    async fn process_action(&mut self, action: AppAction) {
+    fn process_action(&mut self, action: AppAction) {
         match action {
             AppAction::PushScreen(screen) => self.push_screen(screen),
             AppAction::PopScreen => self.pop_screen(),

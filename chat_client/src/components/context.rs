@@ -51,6 +51,7 @@ impl AppContext {
         self.rooms.values_mut().for_each(Room::quit);
     }
 
+    #[allow(clippy::needless_pass_by_value)]
     pub fn join_room(&mut self, base: Url, room_name: impl ToString) {
         self.join_queue.push(RoomLocation {
             url: base,
@@ -64,15 +65,15 @@ impl AppContext {
             return;
         }
 
-        let (room, _) = self.new_room(loc.url.clone(), &loc.room_name);
-        if let None = self.current_room_location {
+        let (room, _) = self.new_room(&loc.url, &loc.room_name);
+        if self.current_room_location.is_none() {
             self.current_room_location = Some(loc.clone());
         }
         self.rooms.insert(loc, room);
     }
 
-    fn new_room(&self, base: Url, room_name: &str) -> (Room, tokio::task::JoinHandle<()>) {
-        connect_room_ws(self.config.web.clone(), &base, room_name)
+    fn new_room(&self, base: &Url, room_name: &str) -> (Room, tokio::task::JoinHandle<()>) {
+        connect_room_ws(&self.config.web, base, room_name)
     }
 
     pub fn discover(&mut self, url: Url) {
@@ -153,6 +154,7 @@ impl AppContext {
         }
     }
 
+    #[must_use]
     pub fn get_discovery(&self, url: &Url) -> (FetchState<Discovery, String>, Instant) {
         self.discoveries
             .get(url)

@@ -199,10 +199,8 @@ impl Root<'_> {
         EventResult::consumed()
     }
 
-    pub fn join_room(&mut self, ctx: &mut AppContext, room_name: &str) -> anyhow::Result<()> {
+    pub fn join_room(&mut self, ctx: &mut AppContext, room_name: &str) {
         ctx.join_room(ctx.config.web.url.clone(), room_name);
-
-        Ok(())
     }
 
     fn draw_chat(&self, f: &'_ mut Frame, area: Rect, ctx: &AppContext) {

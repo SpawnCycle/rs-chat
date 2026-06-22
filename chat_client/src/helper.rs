@@ -50,7 +50,7 @@ pub fn text_area<'a>() -> TextArea<'a> {
 ///
 /// This function errors if there was an error during discovery
 pub async fn connect_room(
-    config: WebConfig,
+    config: &WebConfig,
     base_url: &Url,
     room_name: &str,
 ) -> anyhow::Result<(Room, tokio::task::JoinHandle<()>)> {
@@ -63,7 +63,7 @@ pub async fn connect_room(
 
 /// Connects to a room without checking if `base_url` houses a valid chat server
 pub fn connect_room_ws(
-    config: WebConfig,
+    config: &WebConfig,
     base_url: &Url,
     room_name: &str,
 ) -> (Room, tokio::task::JoinHandle<()>) {

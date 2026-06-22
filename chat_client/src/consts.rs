@@ -22,4 +22,4 @@ pub const ACTION_LIFETIME: Duration = Duration::from_millis(500);
 
 pub const TUI_HELP_TEXT: &str = text_resource!("../const_resources/tui_help.md");
 
-pub static CLIENT: LazyLock<Client> = LazyLock::new(|| Client::new());
+pub static CLIENT: LazyLock<Client> = LazyLock::new(Client::new);

@@ -33,7 +33,7 @@ async fn app_entry_point(config: AppConfig, action: Option<ActionType>) -> anyho
 
     let (tx, mut rx) = mpsc::channel(CHANNEL_BUFFER_SIZE);
     let mut app = App::new(config);
-    app.mock_unimplemented().await?;
+    app.mock_unimplemented();
 
     let ev = start_event_poller(tx.clone());
     let tick = start_tick_poller(tx.clone());
@@ -47,7 +47,7 @@ async fn app_entry_point(config: AppConfig, action: Option<ActionType>) -> anyho
             app.exit_because(err.into());
         }
         if let Some(ev) = rx.recv().await {
-            app.handle_event(ev).await;
+            app.handle_event(ev);
         } else {
             app.exit_because(anyhow::anyhow!("Event channel broke"));
             break;

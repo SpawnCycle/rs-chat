@@ -90,10 +90,10 @@ impl WsHandler {
         let stream = stream?;
 
         Ok(Self {
+            config,
             stream,
             tx,
             rx,
-            config,
         })
     }
 
