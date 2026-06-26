@@ -2,6 +2,7 @@ mod context;
 mod log_view;
 mod popup;
 mod room_join;
+mod room_switch;
 mod root;
 
 use std::fmt::Debug;

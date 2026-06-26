@@ -1,6 +1,7 @@
 use std::{sync::LazyLock, time::Duration};
 
 use chat_lib::text_resource;
+use ratatui::style::Style;
 use reqwest::Client;
 
 /// The buffer size for the various channels (mpsc/broadcast)
@@ -23,3 +24,6 @@ pub const ACTION_LIFETIME: Duration = Duration::from_millis(500);
 pub const TUI_HELP_TEXT: &str = text_resource!("../const_resources/tui_help.md");
 
 pub static CLIENT: LazyLock<Client> = LazyLock::new(Client::new);
+
+pub const FOCUSED_CURSOR_STYLE: Style = Style::new().reversed().not_underlined();
+pub const UNFOCUSED_CURSOR_STYLE: Style = Style::new().not_reversed().underlined();

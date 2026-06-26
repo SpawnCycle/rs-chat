@@ -1,8 +1,10 @@
 use std::{
     fmt::{Debug, Display},
+    str::FromStr,
     sync::mpsc::sync_channel,
 };
 
+use anyhow::anyhow;
 use ratatui::widgets::{Block, Borders};
 use ratatui_textarea::TextArea;
 use tokio::sync::mpsc::channel;
@@ -16,6 +18,33 @@ use crate::{
     room::Room,
     ws_handler::{WsAction, WsEvent, WsHandler},
 };
+
+/// Wrapper around Url that checks if it's http(s)
+#[derive(Debug, Clone)]
+pub struct ServerUrl(pub Url);
+
+impl FromStr for ServerUrl {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> anyhow::Result<ServerUrl> {
+        let url = Url::from_str(s)?;
+        let scheme = url.scheme();
+        match scheme {
+            "http" | "https" => Ok(Self(url)),
+            _ => {
+                let err =
+                    anyhow!("The connection string should be http or https, instead got: {scheme}");
+                Err(err)
+            }
+        }
+    }
+}
+
+impl From<ServerUrl> for Url {
+    fn from(value: ServerUrl) -> Self {
+        value.0
+    }
+}
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct RoomLocation {

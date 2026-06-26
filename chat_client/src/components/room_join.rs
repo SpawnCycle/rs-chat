@@ -1,28 +1,93 @@
+use std::str::FromStr;
+
 use crossterm::event::Event;
 use ratatui::{
     Frame,
-    layout::{Constraint, Rect},
+    layout::{Constraint, Direction, Layout, Rect},
+    style::Style,
     widgets::Block,
 };
-use ratatui_textarea::{Input, Key, TextArea};
+use ratatui_textarea::{CursorMove, Input, Key, TextArea};
 use url::Url;
 
-use crate::components::{AppAction, Component, EventResult};
+use crate::{
+    components::{AppAction, Component, EventResult},
+    consts::{FOCUSED_CURSOR_STYLE, UNFOCUSED_CURSOR_STYLE},
+    helper::{ServerUrl, text_area},
+};
 
 /// TODO: make this better
 #[derive(Debug)]
 pub struct RoomJoinModal<'a> {
     // TODO: don't do this, make a new text field instead
-    base_url: Url,
+    server_url: Url,
     message_field: TextArea<'a>,
+    url_field: TextArea<'a>,
+    typing_url: bool,
+}
+
+fn apply_cursor_style(
+    url_field: &mut TextArea<'_>,
+    message_field: &mut TextArea<'_>,
+    typing_url: bool,
+) {
+    if typing_url {
+        url_field.set_cursor_style(FOCUSED_CURSOR_STYLE);
+        message_field.set_cursor_style(UNFOCUSED_CURSOR_STYLE);
+    } else {
+        url_field.set_cursor_style(UNFOCUSED_CURSOR_STYLE);
+        message_field.set_cursor_style(FOCUSED_CURSOR_STYLE);
+    }
 }
 
 impl RoomJoinModal<'_> {
-    pub fn new(url: Url) -> Self {
+    pub fn new(server_url: Url) -> Self {
+        let url_block = Block::bordered().title("Server url");
+        let message_block = Block::bordered().title("Room name");
+
+        let mut url_field = text_area();
+        url_field.insert_str(&server_url);
+        url_field.set_block(url_block);
+        url_field.set_cursor_line_style(Style::new().not_underlined());
+        // For some reason it doesn't move it by itself
+        url_field.move_cursor(CursorMove::End);
+
+        let mut message_field = text_area();
+        message_field.set_block(message_block);
+        message_field.set_cursor_line_style(Style::new().not_underlined());
+
+        apply_cursor_style(&mut url_field, &mut message_field, false);
+
         Self {
-            base_url: url,
-            message_field: TextArea::new(Vec::new()),
+            server_url,
+            message_field,
+            url_field,
+            typing_url: false,
         }
+    }
+
+    fn apply_cursor_style(&mut self) {
+        apply_cursor_style(
+            &mut self.url_field,
+            &mut self.message_field,
+            self.typing_url,
+        );
+    }
+
+    fn switch_inputs(&mut self) {
+        if self.typing_url {
+            let url_text = self.url_field.lines()[0].clone();
+            let url = ServerUrl::from_str(url_text.trim());
+            // TODO: if and when I do the notifications, one should be sent out here
+            if let Ok(url) = url {
+                self.server_url = url.into();
+            }
+            self.url_field.clear();
+            self.url_field.insert_str(&self.server_url);
+        }
+
+        self.typing_url = !self.typing_url;
+        self.apply_cursor_style();
     }
 }
 
@@ -39,7 +104,7 @@ impl Component for RoomJoinModal<'_> {
             } => {
                 let input = self.message_field.lines()[0].trim();
                 return EventResult::batch([
-                    AppAction::join_room(self.base_url.clone(), input),
+                    AppAction::join_room(self.server_url.clone(), input),
                     AppAction::pop_component(),
                 ]);
             }
@@ -51,8 +116,15 @@ impl Component for RoomJoinModal<'_> {
             | Input { key: Key::Esc, .. } => {
                 return EventResult::pop_component();
             }
+            Input { key: Key::Tab, .. } => {
+                self.switch_inputs();
+            }
             _ => {
-                self.message_field.input(event.clone());
+                if self.typing_url {
+                    self.url_field.input(event.clone());
+                } else {
+                    self.message_field.input(event.clone());
+                }
             }
         }
 
@@ -60,13 +132,20 @@ impl Component for RoomJoinModal<'_> {
     }
 
     fn render(&self, f: &mut Frame<'_>, area: Rect, _ctx: &super::AppContext) {
-        let block = Block::bordered().title_top("Join a room");
-        let area = area.centered(Constraint::Percentage(75), Constraint::Length(3));
+        let area = area.centered(Constraint::Percentage(75), Constraint::Length(8));
 
-        f.render_widget(&block, area);
-        let area = block.inner(area);
+        let top_block = Block::bordered().title("Join a room");
+        f.render_widget(&top_block, area);
+        let area = top_block.inner(area);
 
-        f.render_widget(&self.message_field, area);
+        let layout = Layout::new(
+            Direction::Vertical,
+            [Constraint::Length(3), Constraint::Length(3)],
+        );
+        let area = layout.split(area);
+
+        f.render_widget(&self.url_field, area[0]);
+        f.render_widget(&self.message_field, area[1]);
     }
 
     fn update(&self, _ctx: &mut super::AppContext) {}

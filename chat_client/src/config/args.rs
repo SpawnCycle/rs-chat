@@ -1,7 +1,6 @@
-use anyhow::anyhow;
 use clap::{Args, Parser, Subcommand};
-use std::str::FromStr;
-use url::Url;
+
+use crate::helper::ServerUrl;
 
 #[derive(Debug, Parser)]
 #[command(version, about)]
@@ -46,32 +45,4 @@ pub struct LsArgs {
 #[derive(Debug, Clone, Args)]
 pub struct EchoArgs {
     pub words: Vec<String>,
-}
-
-/// Wrapper around Url that checks if it's http(s)
-#[derive(Debug, Clone)]
-pub struct ServerUrl(pub Url);
-
-impl FromStr for ServerUrl {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> anyhow::Result<ServerUrl> {
-        let url = Url::from_str(s)?;
-        let scheme = url.scheme();
-        match scheme {
-            "http" | "https" => Ok(Self(url)),
-            _ => {
-                let err =
-                    anyhow!("The connection string should be http or https, instead got: {scheme}");
-                eprintln!("{err:?}");
-                Err(err)
-            }
-        }
-    }
-}
-
-impl From<ServerUrl> for Url {
-    fn from(value: ServerUrl) -> Self {
-        value.0
-    }
 }

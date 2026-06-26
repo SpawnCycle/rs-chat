@@ -108,6 +108,7 @@ impl AppContext {
                         self.connect_room(loc);
                     }
                     FetchState::Error(err) => {
+                        // TODO: display this somehow? notifications?
                         log::error!("Tried to join bad server {err}");
                     }
                 }

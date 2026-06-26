@@ -4,6 +4,7 @@
 
 In general if you enter a submenu or a new screen, you can go back by pressing the same key. (e.g. you can exit the help menu by pressing Ctrl+h)
 In case of popup you can always exit them by pressing escape.
+If you see a popup with multiple fields, you can switch between the two with Tab.
 On most screens you can exit the app by pressing Ctrl+q.
 
 ## Chat

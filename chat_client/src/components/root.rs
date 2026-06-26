@@ -16,6 +16,7 @@ use crate::{
         log_view::LogView,
         popup::{Popup, PopupOptions},
         room_join::RoomJoinModal,
+        room_switch::RoomSwitchModal,
     },
     consts::TUI_HELP_TEXT,
     helper::text_area,
@@ -24,7 +25,7 @@ use crate::{
 #[derive(Debug)]
 pub struct Root<'a> {
     message_field: TextArea<'a>,
-    active_text_area: Option<ActiveTextArea<'a>>,
+    active_text_area: Option<TextArea<'a>>,
     show_sidebar: bool,
 }
 
@@ -55,23 +56,6 @@ fn help_popup() -> Popup {
     })
 }
 
-/// Specifies the active text area
-/// with the exception of the message input field
-#[derive(Debug)]
-enum ActiveTextArea<'a> {
-    UsernameField(TextArea<'a>),
-    #[allow(unused)]
-    Popup(TextArea<'a>),
-}
-
-impl ActiveTextArea<'_> {
-    fn input(&mut self, input: Input) -> bool {
-        match self {
-            ActiveTextArea::UsernameField(ta) | ActiveTextArea::Popup(ta) => ta.input(input),
-        }
-    }
-}
-
 impl Component for Root<'_> {
     fn handle_event(&mut self, event: &Event, ctx: &mut AppContext) -> EventResult {
         self.handle_chat_input(event.clone(), ctx)
@@ -100,6 +84,10 @@ impl Root<'_> {
         }
     }
 
+    #[allow(
+        clippy::too_many_lines,
+        reason = "It's fine to have this function this big"
+    )]
     fn handle_chat_input(&mut self, e: Event, ctx: &mut AppContext) -> EventResult {
         match e.into() {
             Input {
@@ -188,8 +176,16 @@ impl Root<'_> {
                 ctrl: true,
                 ..
             } => {
-                let url = ctx.config.web.url.clone();
-                return EventResult::push_component(RoomJoinModal::new(url));
+                return EventResult::push_component(RoomJoinModal::new(ctx.config.web.url.clone()));
+            }
+            Input {
+                key: Key::Char('s'),
+                ctrl: true,
+                ..
+            } => {
+                return EventResult::push_component(RoomSwitchModal::new(
+                    ctx.config.web.url.clone(),
+                ));
             }
             input => {
                 self.forward_input(input);
@@ -302,7 +298,7 @@ impl Root<'_> {
             f.render_widget(Clear, chunks[1]);
         }
 
-        if let Some(ActiveTextArea::UsernameField(ta)) = &self.active_text_area {
+        if let Some(ta) = &self.active_text_area {
             f.render_widget(ta, chunks[0]);
         } else {
             draw_top_bar(f, chunks[0], name);
@@ -311,22 +307,18 @@ impl Root<'_> {
     }
 
     fn submit_text(&mut self, ctx: &mut AppContext) {
-        match &self.active_text_area {
-            Some(ActiveTextArea::UsernameField(ta)) => {
-                let username = ta.lines()[0].clone();
-                self.active_text_area = None;
-                ctx.current_room_mut_action(|r| {
-                    r.change_name(&username);
-                });
-            }
-            Some(ActiveTextArea::Popup(_)) => todo!(),
-            None => {
-                let message = self.message_field.lines()[0].clone();
-                self.message_field.clear();
-                ctx.current_room_mut_action(|r| {
-                    r.send_text(&message);
-                });
-            }
+        if let Some(ta) = &self.active_text_area {
+            let username = ta.lines()[0].clone();
+            self.active_text_area = None;
+            ctx.current_room_mut_action(|r| {
+                r.change_name(&username);
+            });
+        } else {
+            let message = self.message_field.lines()[0].clone();
+            self.message_field.clear();
+            ctx.current_room_mut_action(|r| {
+                r.send_text(&message);
+            });
         }
     }
 
@@ -360,7 +352,7 @@ impl Root<'_> {
             if let Some(usr) = room.self_user() {
                 text_area.insert_str(usr.get_name());
             }
-            self.active_text_area = Some(ActiveTextArea::UsernameField(text_area));
+            self.active_text_area = Some(text_area);
         }
     }
 
