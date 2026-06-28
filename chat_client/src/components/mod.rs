@@ -4,6 +4,9 @@ mod popup;
 mod room_join;
 mod room_switch;
 mod root;
+mod text_popup;
+
+pub mod popup_options;
 
 use std::fmt::Debug;
 

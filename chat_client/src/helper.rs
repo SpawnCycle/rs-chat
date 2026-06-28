@@ -13,7 +13,7 @@ use uuid::Uuid;
 
 use crate::{
     config::WebConfig,
-    consts::{CHANNEL_BUFFER_SIZE, CLIENT},
+    consts::{CHANNEL_BUFFER_SIZE, CLIENT, FOCUSED_CURSOR_STYLE, UNFOCUSED_CURSOR_STYLE},
     requests::room_discovery,
     room::Room,
     ws_handler::{WsAction, WsEvent, WsHandler},
@@ -52,6 +52,12 @@ pub struct RoomLocation {
     pub room_name: String,
 }
 
+impl RoomLocation {
+    pub fn new(url: Url, room_name: String) -> Self {
+        Self { url, room_name }
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub enum FetchState<T, E>
 where
@@ -70,6 +76,20 @@ pub fn text_area<'a>() -> TextArea<'a> {
     input.set_max_histories(0);
     input.set_block(Block::default().borders(Borders::ALL));
     input
+}
+
+pub fn apply_cursor_style(
+    first_field: &mut TextArea<'_>,
+    second_field: &mut TextArea<'_>,
+    first_focused: bool,
+) {
+    if first_focused {
+        first_field.set_cursor_style(FOCUSED_CURSOR_STYLE);
+        second_field.set_cursor_style(UNFOCUSED_CURSOR_STYLE);
+    } else {
+        first_field.set_cursor_style(UNFOCUSED_CURSOR_STYLE);
+        second_field.set_cursor_style(FOCUSED_CURSOR_STYLE);
+    }
 }
 
 /// First tries to run a discover on `base_url`,

@@ -171,6 +171,20 @@ impl AppContext {
     }
 
     #[must_use]
+    pub fn has_server(&self, url: &Url) -> bool {
+        self.rooms.iter().any(|r| r.0.url == *url)
+    }
+
+    pub fn try_set_current_room(&mut self, loc: RoomLocation) -> bool {
+        let exists = self.rooms.contains_key(&loc);
+        if exists {
+            self.current_room_location = Some(loc);
+        }
+
+        exists
+    }
+
+    #[must_use]
     pub fn current_room_name(&self) -> Option<&str> {
         self.current_room_location
             .as_ref()

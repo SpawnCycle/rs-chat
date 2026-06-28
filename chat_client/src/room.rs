@@ -40,7 +40,7 @@ pub struct Room {
     state: RoomState,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum RoomState {
     Pending,
     Active,
@@ -62,6 +62,10 @@ impl Room {
             active_requests: HashMap::new(),
             state: RoomState::Pending,
         }
+    }
+
+    pub fn get_state(&self) -> RoomState {
+        self.state.clone()
     }
 
     pub fn get_error(&self) -> Option<&str> {

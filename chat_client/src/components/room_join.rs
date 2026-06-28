@@ -12,8 +12,7 @@ use url::Url;
 
 use crate::{
     components::{AppAction, Component, EventResult},
-    consts::{FOCUSED_CURSOR_STYLE, UNFOCUSED_CURSOR_STYLE},
-    helper::{ServerUrl, text_area},
+    helper::{ServerUrl, apply_cursor_style, text_area},
 };
 
 /// TODO: make this better
@@ -24,20 +23,6 @@ pub struct RoomJoinModal<'a> {
     message_field: TextArea<'a>,
     url_field: TextArea<'a>,
     typing_url: bool,
-}
-
-fn apply_cursor_style(
-    url_field: &mut TextArea<'_>,
-    message_field: &mut TextArea<'_>,
-    typing_url: bool,
-) {
-    if typing_url {
-        url_field.set_cursor_style(FOCUSED_CURSOR_STYLE);
-        message_field.set_cursor_style(UNFOCUSED_CURSOR_STYLE);
-    } else {
-        url_field.set_cursor_style(UNFOCUSED_CURSOR_STYLE);
-        message_field.set_cursor_style(FOCUSED_CURSOR_STYLE);
-    }
 }
 
 impl RoomJoinModal<'_> {
@@ -132,12 +117,6 @@ impl Component for RoomJoinModal<'_> {
     }
 
     fn render(&self, f: &mut Frame<'_>, area: Rect, _ctx: &super::AppContext) {
-        let area = area.centered(Constraint::Percentage(75), Constraint::Length(8));
-
-        let top_block = Block::bordered().title("Join a room");
-        f.render_widget(&top_block, area);
-        let area = top_block.inner(area);
-
         let layout = Layout::new(
             Direction::Vertical,
             [Constraint::Length(3), Constraint::Length(3)],

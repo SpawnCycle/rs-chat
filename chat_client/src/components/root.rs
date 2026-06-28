@@ -12,14 +12,13 @@ use ratatui_textarea::{Input, Key, TextArea};
 use crate::{
     chat::{draw_room_events, draw_top_bar, top_block},
     components::{
-        AppContext, Component, EventResult,
-        log_view::LogView,
-        popup::{Popup, PopupOptions},
-        room_join::RoomJoinModal,
-        room_switch::RoomSwitchModal,
+        AppContext, Component, EventResult, log_view::LogView, popup::Popup,
+        popup_options::PopupOptions, room_join::RoomJoinModal, room_switch::RoomSwitchModal,
+        text_popup::TextPopup,
     },
     consts::TUI_HELP_TEXT,
     helper::text_area,
+    room::RoomState,
 };
 
 #[derive(Debug)]
@@ -43,8 +42,8 @@ fn layout() -> Layout {
     ])
 }
 
-fn help_popup() -> Popup {
-    Popup::new(TUI_HELP_TEXT, PopupOptions::new().no_pass(), |ev| {
+fn help_popup() -> TextPopup {
+    TextPopup::new(TUI_HELP_TEXT, PopupOptions::new().no_pass(), |ev| {
         matches!(
             ev.clone().into(),
             Input {
@@ -176,16 +175,20 @@ impl Root<'_> {
                 ctrl: true,
                 ..
             } => {
-                return EventResult::push_component(RoomJoinModal::new(ctx.config.web.url.clone()));
+                let modal = RoomJoinModal::new(ctx.config.web.url.clone());
+                let opts = PopupOptions::new()
+                    .set_vsize(Constraint::Length(8))
+                    .set_name("Join a room");
+                return EventResult::push_component(Popup::new(modal.boxed(), opts));
             }
             Input {
                 key: Key::Char('s'),
                 ctrl: true,
                 ..
             } => {
-                return EventResult::push_component(RoomSwitchModal::new(
-                    ctx.config.web.url.clone(),
-                ));
+                let modal = RoomSwitchModal::new(ctx.config.web.url.clone());
+                let opts = PopupOptions::new().set_name("Switch rooms");
+                return EventResult::push_component(Popup::new(modal.boxed(), opts));
             }
             input => {
                 self.forward_input(input);
@@ -246,16 +249,24 @@ impl Root<'_> {
         let room_area = y_areas[1];
         let rooms = ctx
             .rooms
-            .keys()
-            .map(|r| &r.room_name)
-            .map(String::as_str)
-            .map(|s| {
-                let mut style = Style::new();
-                if let Some(room) = current_room
-                    && room == s
+            .iter()
+            .map(|(loc, r)| {
+                let s = loc.room_name.as_str();
+                let style = match r.get_state() {
+                    RoomState::Active => Style::new(),
+                    RoomState::Quit => Style::new().crossed_out(),
+                    RoomState::Pending => Style::new().gray(),
+                    RoomState::Error(_) => Style::new().red(),
+                };
+
+                let style = if let Some(name) = current_room
+                    && name == loc.room_name
                 {
-                    style = style.blue();
-                }
+                    style.blue()
+                } else {
+                    style
+                };
+
                 Line::from(s).style(style)
             })
             .collect::<Text>();
