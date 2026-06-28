@@ -190,6 +190,14 @@ impl Root<'_> {
                 let opts = PopupOptions::new().set_name("Switch rooms");
                 return EventResult::push_component(Popup::new(modal.boxed(), opts));
             }
+            Input {
+                key: Key::Char('d'),
+                alt: true,
+                ctrl: false,
+                ..
+            } => {
+                ctx.quit_current_room();
+            }
             input => {
                 self.forward_input(input);
             }

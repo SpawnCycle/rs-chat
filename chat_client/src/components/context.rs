@@ -47,8 +47,24 @@ impl AppContext {
         self.process_join_queue();
     }
 
+    pub fn quit_current_room(&mut self) {
+        if let Some(loc) = self.current_room_location.clone() {
+            self.quit_room(&loc);
+        }
+    }
+
+    pub fn quit_room(&mut self, loc: &RoomLocation) {
+        let _ = self.rooms.get_mut(loc).map(Room::quit);
+        self.retain_active_rooms();
+        self.verify_current_room();
+
+        self.current_room_or(self.rooms.keys().next().cloned());
+        // TODO: send a notification about this action?
+    }
+
     pub fn quit_all_rooms(&mut self) {
         self.rooms.values_mut().for_each(Room::quit);
+        self.retain_active_rooms();
     }
 
     #[allow(clippy::needless_pass_by_value)]
@@ -59,17 +75,21 @@ impl AppContext {
         });
     }
 
-    fn connect_room(&mut self, loc: RoomLocation) {
+    fn add_room(&mut self, loc: RoomLocation) {
         if self.rooms.contains_key(&loc) {
             // We're already in a room, this request is outdated
             return;
         }
 
         let (room, _) = self.new_room(&loc.url, &loc.room_name);
-        if self.current_room_location.is_none() {
-            self.current_room_location = Some(loc.clone());
-        }
+        self.current_room_or(loc.clone().into());
         self.rooms.insert(loc, room);
+    }
+
+    fn current_room_or(&mut self, loc: Option<RoomLocation>) {
+        if self.current_room_location.is_none() {
+            self.current_room_location = loc;
+        }
     }
 
     fn new_room(&self, base: &Url, room_name: &str) -> (Room, tokio::task::JoinHandle<()>) {
@@ -105,7 +125,7 @@ impl AppContext {
                 match state {
                     FetchState::Pending => new_queue.push(loc),
                     FetchState::Value(_) => {
-                        self.connect_room(loc);
+                        self.add_room(loc);
                     }
                     FetchState::Error(err) => {
                         // TODO: display this somehow? notifications?
@@ -136,17 +156,26 @@ impl AppContext {
         }
     }
 
-    pub fn poll_room_events(&mut self) {
-        for room in self.rooms.values_mut() {
-            room.poll_pending_events();
-        }
-        self.rooms.retain(|_, room| room.active());
-
+    /// Sets the current room to `None` if it's not available
+    fn verify_current_room(&mut self) {
         if let Some(current_room) = &self.current_room_location
             && !self.rooms.contains_key(current_room)
         {
             self.current_room_location = None;
         }
+    }
+
+    fn retain_active_rooms(&mut self) {
+        self.rooms.retain(|_, room| room.active());
+    }
+
+    pub fn poll_room_events(&mut self) {
+        for room in self.rooms.values_mut() {
+            room.poll_pending_events();
+        }
+
+        self.retain_active_rooms();
+        self.verify_current_room();
     }
 
     pub fn send_sync_requests(&mut self) {
@@ -177,6 +206,7 @@ impl AppContext {
 
     pub fn try_set_current_room(&mut self, loc: RoomLocation) -> bool {
         let exists = self.rooms.contains_key(&loc);
+
         if exists {
             self.current_room_location = Some(loc);
         }
