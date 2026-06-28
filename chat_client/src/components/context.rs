@@ -10,6 +10,7 @@ use crate::{
     helper::{FetchState, RoomLocation, connect_room_ws},
     room::Room,
     task::{AppTaskPayload, AppTaskResult, start_discovery},
+    ws_handler::WsAction,
 };
 
 #[derive(Debug)]
@@ -93,7 +94,12 @@ impl AppContext {
     }
 
     fn new_room(&self, base: &Url, room_name: &str) -> (Room, tokio::task::JoinHandle<()>) {
-        connect_room_ws(&self.config.web, base, room_name)
+        let (mut room, ws) = connect_room_ws(&self.config.web, base, room_name);
+
+        room.send_action(WsAction::RequestSelf);
+        room.send_action(WsAction::RequestAll);
+
+        (room, ws)
     }
 
     pub fn discover(&mut self, url: Url) {
