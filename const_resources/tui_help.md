@@ -17,6 +17,7 @@ Ctrl+d: scroll down
 Ctrl+u: scroll up
 Ctrl+p: toggle the offset mode (possible modes: relative, absolute)
 Alt+p: disable the offset
+Alt+d: leave the current room
 
 ## Logs
 

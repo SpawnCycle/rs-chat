@@ -56,13 +56,7 @@ impl App {
         }
     }
 
-    /// This functions mocks some of the unimplemented features
-    ///
-    /// # Errors
-    ///
-    /// This function errors if there was a problem during the setup of various mock features,
-    /// usually it's a network error
-    pub fn mock_unimplemented(&mut self) {
+    pub fn run_defaults(&mut self) {
         let default_room = self.context.config.web.default_room.clone();
         let default_url = self.context.config.web.url.clone();
         self.context.join_room(default_url, &default_room);

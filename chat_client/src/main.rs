@@ -33,7 +33,7 @@ async fn app_entry_point(config: AppConfig, action: Option<ActionType>) -> anyho
 
     let (tx, mut rx) = mpsc::channel(CHANNEL_BUFFER_SIZE);
     let mut app = App::new(config);
-    app.mock_unimplemented();
+    app.run_defaults();
 
     let ev = start_event_poller(tx.clone());
     let tick = start_tick_poller(tx.clone());

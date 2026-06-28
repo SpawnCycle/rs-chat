@@ -27,3 +27,13 @@ pub static CLIENT: LazyLock<Client> = LazyLock::new(Client::new);
 
 pub const FOCUSED_CURSOR_STYLE: Style = Style::new().reversed().not_underlined();
 pub const UNFOCUSED_CURSOR_STYLE: Style = Style::new().not_reversed().underlined();
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tui_help_text_exists() {
+        assert!(!TUI_HELP_TEXT.is_empty());
+    }
+}
