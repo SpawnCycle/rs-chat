@@ -8,6 +8,7 @@ use crate::{
     config::AppConfig,
     consts::CHANNEL_BUFFER_SIZE,
     helper::{FetchState, RoomLocation, connect_room_ws},
+    notif_error, notif_info,
     room::Room,
     task::{AppTaskPayload, AppTaskResult, start_discovery},
     ws_handler::WsAction,
@@ -55,12 +56,16 @@ impl AppContext {
     }
 
     pub fn quit_room(&mut self, loc: &RoomLocation) {
-        let _ = self.rooms.get_mut(loc).map(Room::quit);
+        let quit = self.rooms.get_mut(loc).map(Room::quit).is_some();
+
+        if quit {
+            notif_info!("You quit room {}", loc.room_name);
+        }
+
         self.retain_active_rooms();
         self.verify_current_room();
 
         self.current_room_or(self.rooms.keys().next().cloned());
-        // TODO: send a notification about this action?
     }
 
     pub fn quit_all_rooms(&mut self) {
@@ -134,7 +139,7 @@ impl AppContext {
                         self.add_room(loc);
                     }
                     FetchState::Error(err) => {
-                        // TODO: display this somehow? notifications?
+                        notif_error!("{} is not a valid server", loc.url);
                         log::error!("Tried to join bad server {err}");
                     }
                 }

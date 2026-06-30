@@ -63,7 +63,6 @@ impl RoomJoinModal<'_> {
         if self.typing_url {
             let url_text = self.url_field.lines()[0].clone();
             let url = ServerUrl::from_str(url_text.trim());
-            // TODO: if and when I do the notifications, one should be sent out here
             if let Ok(url) = url {
                 self.server_url = url.into();
             }
@@ -93,14 +92,6 @@ impl Component for RoomJoinModal<'_> {
                     AppAction::pop_component(),
                 ]);
             }
-            Input {
-                key: Key::Char('r'),
-                ctrl: true,
-                ..
-            }
-            | Input { key: Key::Esc, .. } => {
-                return EventResult::pop_component();
-            }
             Input { key: Key::Tab, .. } => {
                 self.switch_inputs();
             }
@@ -126,8 +117,4 @@ impl Component for RoomJoinModal<'_> {
         f.render_widget(&self.url_field, area[0]);
         f.render_widget(&self.message_field, area[1]);
     }
-
-    fn update(&self, _ctx: &mut super::AppContext) {}
-
-    fn before_quit(&mut self, _ctx: &mut super::AppContext) {}
 }

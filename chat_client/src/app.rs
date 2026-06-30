@@ -7,6 +7,7 @@ use crate::{
     AppError, AppEvent,
     components::{AppAction, AppContext, BoxedComponent, Component, EventResult, Root},
     config::AppConfig,
+    notifications,
 };
 
 pub struct App {
@@ -56,7 +57,9 @@ impl App {
         }
     }
 
-    pub fn run_defaults(&mut self) {
+    pub fn prepare_app(&mut self) {
+        notifications::start_notification_poller();
+
         let default_room = self.context.config.web.default_room.clone();
         let default_url = self.context.config.web.url.clone();
         self.context.join_room(default_url, &default_room);
@@ -87,6 +90,7 @@ impl App {
 
     pub fn update(&mut self) {
         let context = &mut self.context;
+        context.update();
 
         for screen in &mut self.screen_stack {
             for component in screen {
@@ -122,6 +126,8 @@ impl App {
 
     pub fn quit(&mut self) {
         let context = &mut self.context;
+
+        context.quit_all_rooms();
 
         self.screen_stack.iter_mut().rev().for_each(|s| {
             for c in s.iter_mut() {

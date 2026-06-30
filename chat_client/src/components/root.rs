@@ -12,9 +12,9 @@ use ratatui_textarea::{Input, Key, TextArea};
 use crate::{
     chat::{draw_room_events, draw_top_bar, top_block},
     components::{
-        AppContext, Component, EventResult, log_view::LogView, popup::Popup,
-        popup_options::PopupOptions, room_join::RoomJoinModal, room_switch::RoomSwitchModal,
-        text_popup::TextPopup,
+        AppContext, Component, EventResult, log_view::LogView, notification_view::NotificationView,
+        popup::Popup, popup_options::PopupOptions, room_join::RoomJoinModal,
+        room_switch::RoomSwitchModal, text_popup::TextPopup,
     },
     consts::TUI_HELP_TEXT,
     helper::text_area,
@@ -42,7 +42,7 @@ fn layout() -> Layout {
     ])
 }
 
-fn help_popup() -> TextPopup {
+fn help_popup() -> TextPopup<'static> {
     TextPopup::new(TUI_HELP_TEXT, PopupOptions::new().no_pass(), |ev| {
         matches!(
             ev.clone().into(),
@@ -57,19 +57,11 @@ fn help_popup() -> TextPopup {
 
 impl Component for Root<'_> {
     fn handle_event(&mut self, event: &Event, ctx: &mut AppContext) -> EventResult {
-        self.handle_chat_input(event.clone(), ctx)
+        self.handle_input(event.clone(), ctx)
     }
 
     fn render(&self, f: &mut Frame<'_>, area: Rect, ctx: &AppContext) {
         self.draw_chat(f, area, ctx);
-    }
-
-    fn update(&self, ctx: &mut AppContext) {
-        ctx.update();
-    }
-
-    fn before_quit(&mut self, ctx: &mut AppContext) {
-        ctx.quit_all_rooms();
     }
 }
 
@@ -87,7 +79,7 @@ impl Root<'_> {
         clippy::too_many_lines,
         reason = "It's fine to have this function this big"
     )]
-    fn handle_chat_input(&mut self, e: Event, ctx: &mut AppContext) -> EventResult {
+    fn handle_input(&mut self, e: Event, ctx: &mut AppContext) -> EventResult {
         match e.into() {
             Input {
                 key: Key::Char('n'),
@@ -198,6 +190,17 @@ impl Root<'_> {
             } => {
                 ctx.quit_current_room();
             }
+            Input {
+                key: Key::Char('t'),
+                ctrl: true,
+                ..
+            } => {
+                let opts = PopupOptions::new().set_name("Notifications");
+                return EventResult::push_component(Popup::new(
+                    NotificationView::new().boxed(),
+                    opts,
+                ));
+            }
             input => {
                 self.forward_input(input);
             }
@@ -287,6 +290,7 @@ impl Root<'_> {
     }
 
     fn draw_room(&self, f: &mut Frame, area: Rect, ctx: &AppContext, left_borders: bool) {
+        // TODO: draw the unviewed notifications somewhere?
         let borders = if left_borders {
             Borders::LEFT
         } else {

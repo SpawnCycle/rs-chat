@@ -21,6 +21,7 @@ impl std::fmt::Debug for Popup {
 }
 
 impl Popup {
+    #[must_use]
     pub fn new(component: BoxedComponent, options: PopupOptions) -> Self {
         Self {
             inner: component,
@@ -51,7 +52,7 @@ impl Component for Popup {
         self.inner.render(f, area, ctx);
     }
 
-    fn update(&self, ctx: &mut AppContext) {
+    fn update(&mut self, ctx: &mut AppContext) {
         self.inner.update(ctx);
     }
 

@@ -139,9 +139,6 @@ impl Component for RoomSwitchModal<'_> {
             Input { key: Key::Tab, .. } => {
                 self.toggle_search_type(ctx);
             }
-            Input { key: Key::Esc, .. } => {
-                return EventResult::pop_component();
-            }
             Input {
                 key: Key::Char('m'),
                 ctrl: true,

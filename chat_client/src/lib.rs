@@ -8,6 +8,7 @@ mod actions;
 mod chat;
 mod helper;
 mod logs;
+mod notifications;
 mod requests;
 mod room;
 mod task;

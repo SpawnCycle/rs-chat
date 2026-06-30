@@ -30,10 +30,6 @@ impl Component for LogView {
     fn render(&self, f: &mut Frame<'_>, area: Rect, _ctx: &AppContext) {
         draw_logs(f, area, &self.logger_state);
     }
-
-    fn update(&self, _ctx: &mut AppContext) {}
-
-    fn before_quit(&mut self, _ctx: &mut AppContext) {}
 }
 
 impl LogView {
@@ -45,13 +41,6 @@ impl LogView {
 
     fn handle_log_input(&mut self, e: Event) -> EventResult {
         match e.into() {
-            Input {
-                key: Key::Char('l'),
-                ctrl: true,
-                ..
-            } => {
-                return EventResult::pop_component();
-            }
             Input {
                 key: Key::Char(' '),
                 ..

@@ -1,12 +1,13 @@
-mod context;
 mod log_view;
-mod popup;
+mod notification_view;
 mod room_join;
 mod room_switch;
 mod root;
-mod text_popup;
 
+pub mod context;
+pub mod popup;
 pub mod popup_options;
+pub mod text_popup;
 
 use std::fmt::Debug;
 
@@ -27,7 +28,7 @@ pub trait Component {
 
     // functions that can be implemented
 
-    fn update(&self, _ctx: &mut AppContext) {}
+    fn update(&mut self, _ctx: &mut AppContext) {}
     fn before_quit(&mut self, _ctx: &mut AppContext) {}
 
     // functions that shouldn't be overridden

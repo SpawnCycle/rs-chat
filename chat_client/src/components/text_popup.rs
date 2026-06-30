@@ -2,22 +2,22 @@ use std::fmt::{self, Debug};
 
 use crossterm::event::Event;
 use ratatui::{
-    text::Line,
+    text::Text,
     widgets::{Block, Clear, Paragraph, Wrap},
 };
 use ratatui_textarea::{Input, Key};
 
 use crate::components::{AppContext, Component, EventResult, popup_options::PopupOptions};
 
-pub struct TextPopup {
-    content: String,
+pub struct TextPopup<'a> {
+    content: Text<'a>,
     extra_toggle: Box<dyn Fn(&Event) -> bool>,
     /// scroll compared to the top
     scroll: u16,
     options: PopupOptions,
 }
 
-impl Debug for TextPopup {
+impl Debug for TextPopup<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PopupComponent")
             .field("content", &self.content)
@@ -28,22 +28,22 @@ impl Debug for TextPopup {
     }
 }
 
-impl TextPopup {
+impl<'a> TextPopup<'a> {
     pub fn new(
-        content: &(impl ToString + ?Sized),
+        content: impl Into<Text<'a>>,
         options: PopupOptions,
         extra_toggle: impl Fn(&Event) -> bool + 'static,
     ) -> Self {
         Self {
             scroll: 0,
-            content: content.to_string(),
+            content: content.into(),
             extra_toggle: Box::new(extra_toggle),
             options,
         }
     }
 }
 
-impl Component for TextPopup {
+impl Component for TextPopup<'_> {
     fn handle_event(&mut self, event: &Event, _ctx: &mut AppContext) -> super::EventResult {
         match event.clone().into() {
             Input { key: Key::Esc, .. } => {
@@ -99,14 +99,13 @@ impl Component for TextPopup {
         _ctx: &super::AppContext,
     ) {
         let area = area.centered(self.options.hsize, self.options.vsize);
-        let lines = self.content.lines().map(Line::from).collect::<Vec<_>>();
         let mut block = Block::bordered();
 
         if let Some(name) = &self.options.name {
             block = block.title(name.as_str());
         }
 
-        let para = Paragraph::new(lines)
+        let para = Paragraph::new(self.content.clone())
             .block(block)
             .wrap(Wrap { trim: false })
             .scroll((self.scroll, 0));
