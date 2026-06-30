@@ -14,7 +14,7 @@ use crate::{
     components::{
         AppContext, Component, EventResult, log_view::LogView, notification_view::NotificationView,
         popup::Popup, popup_options::PopupOptions, room_join::RoomJoinModal,
-        room_switch::RoomSwitchModal, text_popup::TextPopup,
+        room_switch::RoomSwitchModal, screen::Screen, text_popup::TextPopup,
     },
     consts::TUI_HELP_TEXT,
     helper::text_area,
@@ -135,18 +135,11 @@ impl Root<'_> {
                 self.exit_username_text_area();
             }
             Input {
-                key: Key::Char('q'),
-                ctrl: true,
-                ..
-            } => {
-                return EventResult::quit();
-            }
-            Input {
                 key: Key::Char('l'),
                 ctrl: true,
                 ..
             } => {
-                return EventResult::push_screen(LogView::new());
+                return EventResult::push_screen(Screen::new(LogView::new()));
             }
             Input {
                 key: Key::Char('b'),

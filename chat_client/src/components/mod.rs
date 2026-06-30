@@ -1,13 +1,13 @@
+mod context;
 mod log_view;
 mod notification_view;
+mod popup;
+mod popup_options;
 mod room_join;
 mod room_switch;
 mod root;
-
-pub mod context;
-pub mod popup;
-pub mod popup_options;
-pub mod text_popup;
+mod screen;
+mod text_popup;
 
 use std::fmt::Debug;
 
@@ -16,7 +16,16 @@ use ratatui::{Frame, layout::Rect};
 use url::Url;
 
 pub use context::AppContext;
+pub use log_view::LogView;
+pub use notification_view::NotificationView;
+pub use room_join::RoomJoinModal;
+pub use room_switch::RoomSwitchModal;
 pub use root::Root;
+pub use screen::Screen;
+
+pub use popup::*;
+pub use popup_options::*;
+pub use text_popup::*;
 
 pub type BoxedComponent = Box<dyn Component>;
 

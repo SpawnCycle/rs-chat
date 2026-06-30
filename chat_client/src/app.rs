@@ -5,7 +5,7 @@ use ratatui::Frame;
 
 use crate::{
     AppError, AppEvent,
-    components::{AppAction, AppContext, BoxedComponent, Component, EventResult, Root},
+    components::{AppAction, AppContext, BoxedComponent, Component, EventResult, Root, Screen},
     config::AppConfig,
     notifications,
 };
@@ -51,7 +51,7 @@ impl App {
     #[must_use]
     pub fn new(config: AppConfig) -> Self {
         Self {
-            screen_stack: vec![vec![Box::new(Root::new())]],
+            screen_stack: vec![vec![Screen::new(Root::new()).boxed()]],
             context: AppContext::new(config),
             exit_reason: None,
         }

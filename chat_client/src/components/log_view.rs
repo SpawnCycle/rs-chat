@@ -32,7 +32,14 @@ impl Component for LogView {
     }
 }
 
+impl Default for LogView {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LogView {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             logger_state: tui_logger::TuiWidgetState::new(),
@@ -97,13 +104,6 @@ impl LogView {
                 ..
             } => {
                 self.logger_state.transition(TuiWidgetEvent::FocusKey);
-            }
-            Input {
-                key: Key::Char('q'),
-                ctrl: true,
-                ..
-            } => {
-                return EventResult::quit();
             }
             _ => {
                 // TODO: some other controls?

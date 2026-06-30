@@ -26,6 +26,7 @@ pub struct RoomJoinModal<'a> {
 }
 
 impl RoomJoinModal<'_> {
+    #[must_use]
     pub fn new(server_url: Url) -> Self {
         let url_block = Block::bordered().title("Server url");
         let message_block = Block::bordered().title("Room name");
