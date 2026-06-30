@@ -1,7 +1,10 @@
 use std::{collections::HashMap, time::Instant};
 
 use chat_lib::Discovery;
-use tokio::sync::mpsc::{Receiver, Sender, channel};
+use tokio::sync::{
+    broadcast,
+    mpsc::{Receiver, Sender, channel},
+};
 use url::Url;
 
 use crate::{
@@ -9,6 +12,7 @@ use crate::{
     consts::CHANNEL_BUFFER_SIZE,
     helper::{FetchState, RoomLocation, connect_room_ws},
     notif_error, notif_info,
+    notifications::{self, Notification},
     room::Room,
     task::{AppTaskPayload, AppTaskResult, start_discovery},
     ws_handler::WsAction,
@@ -24,21 +28,27 @@ pub struct AppContext {
     pub task_tx: Sender<AppTaskResult>,
     pub discoveries: HashMap<Url, (FetchState<Discovery, String>, Instant)>,
     pub join_queue: Vec<RoomLocation>,
+    pub notif_rx: broadcast::Receiver<Notification>,
+    // TODO: after implementing notification discarding/decaying use something else than Vec
+    pub notifications: Vec<Notification>,
 }
 
 impl AppContext {
     #[must_use]
     pub fn new(config: AppConfig) -> Self {
-        let (tx, rx) = channel(CHANNEL_BUFFER_SIZE);
+        let (task_tx, task_rx) = channel(CHANNEL_BUFFER_SIZE);
+        let notif_rx = notifications::subscribe();
 
         Self {
+            config,
+            notif_rx,
+            task_rx,
+            task_tx,
             rooms: HashMap::new(),
             current_room_location: None,
-            config,
-            task_rx: rx,
-            task_tx: tx,
             discoveries: HashMap::new(),
             join_queue: Vec::new(),
+            notifications: Vec::new(),
         }
     }
 
@@ -47,6 +57,7 @@ impl AppContext {
         self.send_sync_requests();
         self.poll_tasks();
         self.process_join_queue();
+        self.poll_notifications();
     }
 
     pub fn quit_current_room(&mut self) {
@@ -123,6 +134,12 @@ impl AppContext {
     pub fn poll_tasks(&mut self) {
         while let Ok(task) = self.task_rx.try_recv() {
             self.process_task(task.base, task.payload);
+        }
+    }
+
+    pub fn poll_notifications(&mut self) {
+        while let Ok(notif) = self.notif_rx.try_recv() {
+            self.notifications.push(notif);
         }
     }
 
@@ -223,6 +240,11 @@ impl AppContext {
         }
 
         exists
+    }
+
+    #[must_use]
+    pub fn notifications(&self) -> &[Notification] {
+        &self.notifications
     }
 
     #[must_use]

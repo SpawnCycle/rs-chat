@@ -7,7 +7,6 @@ use crate::{
     AppError, AppEvent,
     components::{AppAction, AppContext, BoxedComponent, Component, EventResult, Root, Screen},
     config::AppConfig,
-    notifications,
 };
 
 pub struct App {
@@ -58,8 +57,6 @@ impl App {
     }
 
     pub fn prepare_app(&mut self) {
-        notifications::start_notification_poller();
-
         let default_room = self.context.config.web.default_room.clone();
         let default_url = self.context.config.web.url.clone();
         self.context.join_room(default_url, &default_room);
