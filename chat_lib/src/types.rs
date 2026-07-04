@@ -34,6 +34,7 @@ pub enum ServerMessage {
     InvalidUser(Uuid),
     NameTooLong(String),
     Banned { duration: Duration, reason: String },
+    Timeout(Duration),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

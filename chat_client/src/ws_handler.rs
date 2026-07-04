@@ -261,6 +261,7 @@ impl WsHandler {
                 let _ = self.tx.send(WsEvent::AllUserInfo(users)).await;
             }
             ServerMessage::UnsupportedMessage(_)
+            | ServerMessage::Timeout(_)
             | ServerMessage::InvalidUser(_)
             | ServerMessage::NameTooLong(_) => {
                 // TODO: implement these

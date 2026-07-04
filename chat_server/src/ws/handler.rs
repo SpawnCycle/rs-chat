@@ -1,3 +1,5 @@
+use std::{collections::VecDeque, time::Instant};
+
 use chat_lib::{
     prelude::*,
     types::{Message as ChatMessage, Sync},
@@ -8,8 +10,11 @@ use rustrict::Context;
 use tokio::sync::broadcast::{self, error::RecvError};
 use uuid::Uuid;
 
-use crate::config::CONTEXT_OPTS;
-use crate::ws::{MsgBroadcastReceiver, MsgBroadcastSender, Room};
+use crate::ws::{MsgBroadcastReceiver, MsgBroadcastSender, Room, consts::TIMEOUT_WINDOW};
+use crate::{
+    config::CONTEXT_OPTS,
+    ws::consts::{MESSAGE_LIMIT, TIMEOUT_DURATION},
+};
 
 pub type WsResult<T = ()> = Result<T, anyhow::Error>;
 
@@ -18,11 +23,12 @@ where
     F: Future<Output = ()> + Clone,
 {
     stream: WsConnection,
+    room: Sync<Room>,
+    message_counter: VecDeque<Instant>,
     ctx: Context,
     id: Uuid,
     rx: MsgBroadcastReceiver,
     tx: MsgBroadcastSender,
-    room: Sync<Room>,
     sd: &'a mut F,
     stream_open: bool,
     in_room: bool,
@@ -44,11 +50,12 @@ where
         Self {
             stream,
             ctx,
+            room,
             id,
             rx,
             tx,
-            room,
             sd,
+            message_counter: VecDeque::new(),
             stream_open: true,
             in_room: true,
         }
@@ -92,21 +99,28 @@ where
                 }
                 Err(err)
             }
-            Ok(msg) => match msg {
-                Message::Text(txt) => self.handle_text(&txt).await,
-                Message::Close(_) => {
-                    if self.stream_open {
-                        self.exit_room().await;
-                    }
-                    Ok(true)
+            Ok(msg) => {
+                if !self.can_send_message() {
+                    self.send_timeout_message().await?;
+                    return Ok(true);
                 }
-                _ => {
-                    if self.stream_open {
-                        self.close_logged().await;
+                self.count_message();
+                match msg {
+                    Message::Text(txt) => self.handle_text(&txt).await,
+                    Message::Close(_) => {
+                        if self.stream_open {
+                            self.exit_room().await;
+                        }
+                        Ok(true)
                     }
-                    Ok(true)
+                    _ => {
+                        if self.stream_open {
+                            self.close_logged().await;
+                        }
+                        Ok(true)
+                    }
                 }
-            },
+            }
         }
     }
 
@@ -174,6 +188,27 @@ where
         }
 
         Ok(false)
+    }
+
+    fn update_message_counter(&mut self) {
+        self.message_counter
+            .retain(|i| i.elapsed() < TIMEOUT_WINDOW);
+    }
+
+    fn can_send_message(&mut self) -> bool {
+        self.update_message_counter();
+
+        self.message_counter.len() > MESSAGE_LIMIT
+    }
+
+    fn count_message(&mut self) {
+        self.message_counter.push_back(Instant::now());
+    }
+
+    async fn send_timeout_message(&mut self) -> WsResult {
+        self.stream
+            .send(ServerMessage::Timeout(TIMEOUT_DURATION).as_wsmsg())
+            .await
     }
 
     async fn exit_room(&mut self) {
