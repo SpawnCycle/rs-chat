@@ -100,11 +100,11 @@ where
                 Err(err)
             }
             Ok(msg) => {
+                self.count_message();
                 if !self.can_send_message() {
                     self.send_timeout_message().await?;
                     return Ok(true);
                 }
-                self.count_message();
                 match msg {
                     Message::Text(txt) => self.handle_text(&txt).await,
                     Message::Close(_) => {
@@ -198,7 +198,7 @@ where
     fn can_send_message(&mut self) -> bool {
         self.update_message_counter();
 
-        self.message_counter.len() > MESSAGE_LIMIT
+        self.message_counter.len() < MESSAGE_LIMIT
     }
 
     fn count_message(&mut self) {
