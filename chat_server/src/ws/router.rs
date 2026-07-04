@@ -5,7 +5,7 @@ use tokio::sync::Mutex;
 
 use crate::ws::{
     room::RoomComponents,
-    routes::{about, room_ls, room_ws},
+    routes::{about, room_ls, room_ws, root},
 };
 
 pub fn paths() -> Router {
@@ -14,6 +14,7 @@ pub fn paths() -> Router {
     let state = crate::AppState { components: rooms };
 
     Router::new()
+        .route("/", get(root))
         .route("/about", get(about))
         .route("/room/{path}", get(room_ws))
         .route("/room/{path}/ls", get(room_ls))

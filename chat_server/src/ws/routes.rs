@@ -16,6 +16,11 @@ use crate::{
     ws::{handler::WsHandler, room::RoomComponents},
 };
 
+/// GET /
+pub async fn root() -> &'static str {
+    "This route is for cloudflare; Fuck you cloudflare; (clownflare)"
+}
+
 /// GET /about
 pub async fn about(State(AppState { components: rooms }): State<AppState>) -> Json<Discovery> {
     let rooms = rooms.lock().await.keys().cloned().collect::<Vec<_>>();
