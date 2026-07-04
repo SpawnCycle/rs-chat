@@ -21,7 +21,7 @@ impl Default for AppConfig {
         Self {
             web: WebConfig {
                 // TODO: change it to the url of the pi once this is hosted
-                url: Url::from_str("http://127.0.0.1:8000/api/")
+                url: Url::from_str("http://127.0.0.1:8000/")
                     .expect("Default Connection url to be correct"),
                 default_room: String::from("default"),
             },
