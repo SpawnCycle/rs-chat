@@ -73,13 +73,16 @@ where
         if !self.in_room {
             return Ok(true);
         }
+        let next_heartbeat = self.last_heartbeat + HEARTBEAT_FREQUENCY;
+
         tokio::select! {
             Some(res) = self.stream.next() => {
                 return self.handle_stream(res).await
             }
             res = self.rx.recv() => return self.handle_rx(res).await,
-            () = sleep_until((self.last_heartbeat + HEARTBEAT_FREQUENCY).into()) => {
+            () = sleep_until(next_heartbeat.into()) => {
                 self.send_heartbeat().await?;
+                return Ok(false);
             }
             () = self.sd.clone() => {
                 self.close_logged().await;
@@ -88,6 +91,7 @@ where
                 self.close_logged().await;
             }
         }
+
         Ok(true)
     }
 
@@ -222,7 +226,12 @@ where
     }
 
     async fn send_heartbeat(&mut self) -> WsResult {
-        self.stream.send(ServerMessage::Heartbeat.as_wsmsg()).await
+        self.stream
+            .send(ServerMessage::Heartbeat.as_wsmsg())
+            .await?;
+        self.last_heartbeat = Instant::now();
+
+        Ok(())
     }
 
     async fn exit_room(&mut self) {

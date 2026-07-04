@@ -9,4 +9,4 @@ pub const TIMEOUT_WINDOW: Duration = Duration::from_secs(2);
 
 pub const TIMEOUT_DURATION: Duration = Duration::from_secs(10);
 
-pub const HEARTBEAT_FREQUENCY: Duration = Duration::from_secs(5);
+pub const HEARTBEAT_FREQUENCY: Duration = Duration::from_secs(30);
