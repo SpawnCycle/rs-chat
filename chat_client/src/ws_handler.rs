@@ -267,6 +267,9 @@ impl WsHandler {
                 // TODO: implement these
                 log::error!("Server sending unimplemented data: {msg:?}");
             }
+            ServerMessage::Heartbeat => {
+                // Nothing needs to be done
+            }
         }
 
         Ok(())

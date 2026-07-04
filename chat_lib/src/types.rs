@@ -33,8 +33,13 @@ pub enum ServerMessage {
     UnsupportedMessage(String),
     InvalidUser(Uuid),
     NameTooLong(String),
-    Banned { duration: Duration, reason: String },
+    Banned {
+        duration: Duration,
+        reason: String,
+    },
     Timeout(Duration),
+    /// Only here so you don't get randomly disconnected
+    Heartbeat,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

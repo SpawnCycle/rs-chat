@@ -7,10 +7,16 @@ use chat_lib::{
 };
 use futures::{SinkExt, StreamExt};
 use rustrict::Context;
-use tokio::sync::broadcast::{self, error::RecvError};
+use tokio::{
+    sync::broadcast::{self, error::RecvError},
+    time::sleep_until,
+};
 use uuid::Uuid;
 
-use crate::ws::{MsgBroadcastReceiver, MsgBroadcastSender, Room, consts::TIMEOUT_WINDOW};
+use crate::ws::{
+    MsgBroadcastReceiver, MsgBroadcastSender, Room,
+    consts::{HEARTBEAT_FREQUENCY, TIMEOUT_WINDOW},
+};
 use crate::{
     config::CONTEXT_OPTS,
     ws::consts::{MESSAGE_LIMIT, TIMEOUT_DURATION},
@@ -29,6 +35,7 @@ where
     id: Uuid,
     rx: MsgBroadcastReceiver,
     tx: MsgBroadcastSender,
+    last_heartbeat: Instant,
     sd: &'a mut F,
     stream_open: bool,
     in_room: bool,
@@ -38,7 +45,7 @@ impl<'a, F> WsHandler<'a, F>
 where
     F: Future<Output = ()> + Clone,
 {
-    pub const fn new(
+    pub fn new(
         stream: WsConnection,
         ctx: Context,
         id: Uuid,
@@ -55,6 +62,7 @@ where
             rx,
             tx,
             sd,
+            last_heartbeat: Instant::now(),
             message_counter: VecDeque::new(),
             stream_open: true,
             in_room: true,
@@ -67,18 +75,20 @@ where
         }
         tokio::select! {
             Some(res) = self.stream.next() => {
-                self.handle_stream(res).await
+                return self.handle_stream(res).await
             }
-            res = self.rx.recv() => self.handle_rx(res).await,
+            res = self.rx.recv() => return self.handle_rx(res).await,
+            () = sleep_until((self.last_heartbeat + HEARTBEAT_FREQUENCY).into()) => {
+                self.send_heartbeat().await?;
+            }
             () = self.sd.clone() => {
                 self.close_logged().await;
-                Ok(true)
             }
             else => {
                 self.close_logged().await;
-                Ok(true)
             }
         }
+        Ok(true)
     }
 
     // This doesn't feel right, but at least it processes all of the messages,
@@ -209,6 +219,10 @@ where
         self.stream
             .send(ServerMessage::Timeout(TIMEOUT_DURATION).as_wsmsg())
             .await
+    }
+
+    async fn send_heartbeat(&mut self) -> WsResult {
+        self.stream.send(ServerMessage::Heartbeat.as_wsmsg()).await
     }
 
     async fn exit_room(&mut self) {
