@@ -1,5 +1,9 @@
 use crossterm::event::Event;
-use ratatui::{Frame, layout::Rect, widgets::Block};
+use ratatui::{
+    Frame,
+    layout::Rect,
+    widgets::{Block, Clear},
+};
 use ratatui_textarea::{Input, Key};
 
 use crate::components::{
@@ -45,6 +49,8 @@ impl Component for Popup {
         if let Some(name) = &self.options.name {
             block = block.title(name.as_str());
         }
+
+        f.render_widget(Clear, area);
 
         f.render_widget(&block, area);
         let area = block.inner(area);

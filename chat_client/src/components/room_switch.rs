@@ -187,4 +187,8 @@ impl Component for RoomSwitchModal<'_> {
         f.render_widget(&self.room_field, area[1]);
         f.render_widget(&para, area[2]);
     }
+
+    fn update(&mut self, ctx: &mut AppContext) {
+        self.update_matches(ctx);
+    }
 }
