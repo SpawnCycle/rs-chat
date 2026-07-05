@@ -36,6 +36,7 @@ where
     rx: MsgBroadcastReceiver,
     tx: MsgBroadcastSender,
     last_heartbeat: Instant,
+    timedout_until: Option<Instant>,
     sd: &'a mut F,
     stream_open: bool,
     in_room: bool,
@@ -66,6 +67,7 @@ where
             message_counter: VecDeque::new(),
             stream_open: true,
             in_room: true,
+            timedout_until: None,
         }
     }
 
@@ -116,7 +118,7 @@ where
             Ok(msg) => {
                 self.count_message();
                 if !self.can_send_message() {
-                    self.send_timeout_message().await?;
+                    self.timeout().await?;
                     return Ok(true);
                 }
                 match msg {
@@ -210,6 +212,14 @@ where
     }
 
     fn can_send_message(&mut self) -> bool {
+        if let Some(t) = self.timedout_until {
+            if t < Instant::now() {
+                self.timedout_until = None;
+            } else {
+                return false;
+            }
+        }
+
         self.update_message_counter();
 
         self.message_counter.len() < MESSAGE_LIMIT
@@ -219,9 +229,19 @@ where
         self.message_counter.push_back(Instant::now());
     }
 
+    async fn timeout(&mut self) -> WsResult {
+        if let Some(t) = self.timedout_until {
+            self.timedout_until = Some(t + TIMEOUT_DURATION);
+        } else {
+            self.timedout_until = Some(Instant::now() + TIMEOUT_DURATION);
+        }
+
+        self.send_timeout_message().await
+    }
+
     async fn send_timeout_message(&mut self) -> WsResult {
         self.stream
-            .send(ServerMessage::Timeout(TIMEOUT_DURATION).as_wsmsg())
+            .send(ServerMessage::TimeoutAdded(TIMEOUT_DURATION).as_wsmsg())
             .await
     }
 

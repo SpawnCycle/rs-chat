@@ -37,7 +37,7 @@ pub enum ServerMessage {
         duration: Duration,
         reason: String,
     },
-    Timeout(Duration),
+    TimeoutAdded(Duration),
     /// Only here so you don't get randomly disconnected
     Heartbeat,
 }
