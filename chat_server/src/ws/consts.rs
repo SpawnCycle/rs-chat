@@ -10,3 +10,5 @@ pub const TIMEOUT_WINDOW: Duration = Duration::from_secs(2);
 pub const TIMEOUT_DURATION: Duration = Duration::from_secs(10);
 
 pub const HEARTBEAT_FREQUENCY: Duration = Duration::from_secs(30);
+
+pub const MAX_STRIKES: usize = 10;

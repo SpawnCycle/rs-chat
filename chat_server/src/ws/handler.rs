@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 use crate::ws::{
     MsgBroadcastReceiver, MsgBroadcastSender, Room,
-    consts::{HEARTBEAT_FREQUENCY, TIMEOUT_WINDOW},
+    consts::{HEARTBEAT_FREQUENCY, MAX_STRIKES, TIMEOUT_WINDOW},
 };
 use crate::{
     config::CONTEXT_OPTS,
@@ -36,7 +36,8 @@ where
     rx: MsgBroadcastReceiver,
     tx: MsgBroadcastSender,
     last_heartbeat: Instant,
-    timedout_until: Option<Instant>,
+    end_of_timeout: Option<Instant>,
+    strikes: usize,
     sd: &'a mut F,
     stream_open: bool,
     in_room: bool,
@@ -67,7 +68,8 @@ where
             message_counter: VecDeque::new(),
             stream_open: true,
             in_room: true,
-            timedout_until: None,
+            end_of_timeout: None,
+            strikes: 0,
         }
     }
 
@@ -212,9 +214,9 @@ where
     }
 
     fn can_send_message(&mut self) -> bool {
-        if let Some(t) = self.timedout_until {
+        if let Some(t) = self.end_of_timeout {
             if t < Instant::now() {
-                self.timedout_until = None;
+                self.end_of_timeout = None;
             } else {
                 return false;
             }
@@ -230,10 +232,16 @@ where
     }
 
     async fn timeout(&mut self) -> WsResult {
-        if let Some(t) = self.timedout_until {
-            self.timedout_until = Some(t + TIMEOUT_DURATION);
+        self.strikes += 1;
+
+        if self.strikes > MAX_STRIKES {
+            return self.close_socket().await;
+        }
+
+        if let Some(t) = self.end_of_timeout {
+            self.end_of_timeout = Some(t + TIMEOUT_DURATION);
         } else {
-            self.timedout_until = Some(Instant::now() + TIMEOUT_DURATION);
+            self.end_of_timeout = Some(Instant::now() + TIMEOUT_DURATION);
         }
 
         self.send_timeout_message().await
