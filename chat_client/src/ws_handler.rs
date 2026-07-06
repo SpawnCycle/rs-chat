@@ -127,6 +127,7 @@ impl WsHandler {
     pub async fn close(&mut self) {
         log::info!("Closing Ws stream");
         let _ = self.tx.send(WsEvent::Quit).await;
+        let _ = self.stream.flush().await;
         let _ = self.stream.close().await;
     }
 
