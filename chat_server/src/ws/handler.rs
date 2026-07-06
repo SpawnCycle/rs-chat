@@ -99,16 +99,6 @@ where
         Ok(true)
     }
 
-    // This doesn't feel right, but at least it processes all of the messages,
-    // which may or may not be the right thing to do
-    pub async fn cleanup(&mut self) -> WsResult<()> {
-        while let Some(res) = self.stream.next().await {
-            self.handle_stream(res).await?;
-        }
-
-        Ok(())
-    }
-
     async fn handle_stream(&mut self, res: Result<Message, anyhow::Error>) -> WsResult<bool> {
         match res {
             Err(err) => {
