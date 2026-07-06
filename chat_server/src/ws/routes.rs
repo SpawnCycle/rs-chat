@@ -84,7 +84,7 @@ pub async fn room_ws(
             if loop_ctx
                 .ws_step()
                 .await
-                .inspect_err(|err| log::error!("{err}"))
+                .inspect_err(|err| log::info!("Couldn't send a message: {err}"))
                 .unwrap_or(true)
             {
                 break;

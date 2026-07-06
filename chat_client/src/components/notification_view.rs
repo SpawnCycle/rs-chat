@@ -2,6 +2,7 @@ use crossterm::event::Event;
 use ratatui::{
     Frame,
     layout::Rect,
+    style::Stylize,
     text::Text,
     widgets::{Paragraph, Wrap},
 };
@@ -63,17 +64,19 @@ impl Component for NotificationView {
     }
 
     fn render(&self, f: &mut Frame<'_>, area: Rect, ctx: &AppContext) {
-        // TODO: Better styling
-        // Box the notifications?
-        let lines = ctx
-            .notifications()
-            .iter()
-            .map(notification_to_span)
-            .collect::<Text>();
+        let para = if ctx.notifications().is_empty() {
+            Paragraph::new("Empty".dark_gray()).centered()
+        } else {
+            let lines = ctx
+                .notifications()
+                .iter()
+                .map(notification_to_span)
+                .collect::<Text>();
 
-        let para = Paragraph::new(lines)
-            .wrap(Wrap { trim: false })
-            .scroll((self.scroll, 0));
+            Paragraph::new(lines)
+        }
+        .wrap(Wrap { trim: false })
+        .scroll((self.scroll, 0));
 
         f.render_widget(para, area);
     }

@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use std::{collections::VecDeque, sync::LazyLock};
+use std::{collections::VecDeque, sync::LazyLock, time::Instant};
 
 use ratatui::{
     style::Stylize,
@@ -19,7 +19,22 @@ pub enum NotificationType {
     Error,
 }
 
-pub type Notification = (NotificationType, String);
+#[derive(Debug, Clone)]
+pub struct Notification {
+    pub typ: NotificationType,
+    pub content: String,
+    pub dispatched_at: Instant,
+}
+
+impl Notification {
+    pub fn new(typ: NotificationType, content: String) -> Self {
+        Self {
+            typ,
+            content,
+            dispatched_at: Instant::now(),
+        }
+    }
+}
 
 /// The channel where the notifications will be sent,
 /// in addition to the notification buffer
@@ -35,7 +50,7 @@ pub fn subscribe() -> broadcast::Receiver<Notification> {
 fn add_notification(typ: NotificationType, data: impl ToString) {
     let data = data.to_string();
     tokio::spawn(async {
-        let notif = (typ, data);
+        let notif = Notification::new(typ, data);
         NOTIFICATION_CHANNEL.send(notif);
     });
 }
@@ -77,10 +92,21 @@ pub fn error(data: impl ToString) {
 }
 
 pub fn notification_to_span(notif: &Notification) -> Span<'_> {
-    let (typ, msg) = notif;
-    let out = format!("{typ}: {msg}");
+    let Notification {
+        typ,
+        content,
+        dispatched_at,
+    } = notif;
+    let since = dispatched_at.elapsed().as_secs();
+    let since_min = since / 60;
+    let since_sec = since % 60;
+    let out = if since_min > 0 {
+        format!("{typ}: {content} ({since_min}m {since_sec}s ago)")
+    } else {
+        format!("{typ}: {content} ({since_sec}s ago)")
+    };
     let out = Span::from(out);
-    match notif.0 {
+    match typ {
         NotificationType::Info => out.green(),
         NotificationType::Warn => out.yellow(),
         NotificationType::Error => out.red(),

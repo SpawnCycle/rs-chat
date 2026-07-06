@@ -9,7 +9,7 @@ use url::Url;
 
 use crate::{
     config::AppConfig,
-    consts::CHANNEL_BUFFER_SIZE,
+    consts::{CHANNEL_BUFFER_SIZE, NOTIFICATION_LIFETIME},
     helper::{FetchState, RoomLocation, connect_room_ws},
     notif_error, notif_info,
     notifications::{self, Notification},
@@ -29,7 +29,6 @@ pub struct AppContext {
     pub discoveries: HashMap<Url, (FetchState<Discovery, String>, Instant)>,
     pub join_queue: Vec<RoomLocation>,
     pub notif_rx: broadcast::Receiver<Notification>,
-    // TODO: after implementing notification discarding/decaying use something else than Vec
     pub notifications: Vec<Notification>,
 }
 
@@ -57,7 +56,7 @@ impl AppContext {
         self.send_sync_requests();
         self.poll_tasks();
         self.process_join_queue();
-        self.poll_notifications();
+        self.update_notifications();
     }
 
     pub fn quit_current_room(&mut self) {
@@ -137,7 +136,17 @@ impl AppContext {
         }
     }
 
-    pub fn poll_notifications(&mut self) {
+    pub fn update_notifications(&mut self) {
+        self.remove_old_notifications();
+        self.poll_notifications();
+    }
+
+    fn remove_old_notifications(&mut self) {
+        self.notifications
+            .retain(|n| n.dispatched_at.elapsed() < NOTIFICATION_LIFETIME);
+    }
+
+    fn poll_notifications(&mut self) {
         while let Ok(notif) = self.notif_rx.try_recv() {
             self.notifications.push(notif);
         }
