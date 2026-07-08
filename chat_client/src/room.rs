@@ -146,7 +146,6 @@ impl Room {
         let name = name.trim();
         if name.chars().count() > 0 {
             self.send_action(WsAction::ChangeName(name.to_string()));
-            self.send_action(WsAction::RequestSelf);
         }
     }
 
