@@ -211,7 +211,7 @@ mod tests {
             .filter_map(Result::ok)
             .collect::<Vec<_>>();
         assert!(out.contains(&in_msg));
-        assert!(in_rx.recv().await == Some(out_msg));
+        assert_eq!(in_rx.recv().await, Some(out_msg));
 
         Ok(())
     }
