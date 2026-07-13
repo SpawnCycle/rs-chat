@@ -13,6 +13,8 @@ use uuid::Uuid;
 
 use crate::{
     AppState,
+    consts::MAX_ROOM_LENGTH,
+    limited_string::LimitedString,
     ws::{handler::WsHandler, room::RoomComponents},
 };
 
@@ -48,7 +50,7 @@ pub async fn room_ls(
 /// GET /room/{path}
 pub async fn room_ws(
     ws: WebSocketUpgrade,
-    path: Path<String>,
+    path: Path<LimitedString<{ MAX_ROOM_LENGTH }>>,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
     // TODO: make graceful shutdown

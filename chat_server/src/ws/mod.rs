@@ -6,7 +6,6 @@ use tokio::sync::{Mutex, broadcast};
 
 use crate::ws::room::RoomComponents;
 
-mod consts;
 mod handler;
 pub mod room;
 mod router;

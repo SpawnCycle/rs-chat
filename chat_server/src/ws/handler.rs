@@ -13,13 +13,10 @@ use tokio::{
 };
 use uuid::Uuid;
 
-use crate::ws::{
-    MsgBroadcastReceiver, MsgBroadcastSender, Room,
-    consts::{HEARTBEAT_FREQUENCY, MAX_STRIKES, TIMEOUT_WINDOW},
-};
 use crate::{
     config::CONTEXT_OPTS,
-    ws::consts::{MESSAGE_LIMIT, TIMEOUT_DURATION},
+    consts::{HEARTBEAT_FREQUENCY, MAX_STRIKES, MESSAGE_LIMIT, TIMEOUT_DURATION, TIMEOUT_WINDOW},
+    ws::{MsgBroadcastReceiver, MsgBroadcastSender, Room},
 };
 
 pub type WsResult<T = ()> = Result<T, anyhow::Error>;

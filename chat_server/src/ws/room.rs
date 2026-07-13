@@ -4,7 +4,10 @@ use chat_lib::prelude::*;
 use tokio::sync::{Mutex, broadcast};
 use uuid::Uuid;
 
-use crate::ws::{BroadCastT, MsgBroadcastSender, consts::BROADCAST_BUFFER_SIZE};
+use crate::{
+    consts::BROADCAST_BUFFER_SIZE,
+    ws::{BroadCastT, MsgBroadcastSender},
+};
 
 pub struct RoomComponents {
     pub room: Arc<Mutex<Room>>,

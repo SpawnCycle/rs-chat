@@ -12,3 +12,5 @@ pub const TIMEOUT_DURATION: Duration = Duration::from_secs(10);
 pub const HEARTBEAT_FREQUENCY: Duration = Duration::from_secs(30);
 
 pub const MAX_STRIKES: usize = 10;
+
+pub const MAX_ROOM_LENGTH: usize = 25;
