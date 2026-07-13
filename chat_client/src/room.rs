@@ -316,11 +316,10 @@ impl Room {
     }
 
     fn add_timeout(&mut self, secs: u64) {
-        let added = Duration::from_secs(secs.into());
+        let added = Duration::from_secs(secs);
         self.timeout_until = Some(
             self.timeout_until
-                .map(|t| t + added)
-                .unwrap_or(Instant::now() + added),
+                .map_or(Instant::now() + added, |t| t + added),
         );
     }
 

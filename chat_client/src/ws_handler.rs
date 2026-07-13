@@ -269,16 +269,13 @@ impl WsHandler {
             ServerMessage::TimeoutAdded(secs) => {
                 self.send_event(WsEvent::TimeoutAdded(secs)).await;
             }
-            ServerMessage::UnsupportedMessage(err) => {
-                self.send_event(WsEvent::SoftError(err)).await;
-            }
             ServerMessage::InvalidUser(id) => {
                 self.send_event(WsEvent::SoftError(format!(
                     "Tried to get a user that doesn't exist: {id}"
                 )))
                 .await;
             }
-            ServerMessage::NameTooLong(err) => {
+            ServerMessage::UnsupportedMessage(err) | ServerMessage::NameTooLong(err) => {
                 self.send_event(WsEvent::SoftError(err)).await;
             }
             ServerMessage::Heartbeat => {
