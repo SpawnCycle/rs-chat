@@ -24,7 +24,7 @@ impl RoomEvent {
                 user_uuid: *msg.get_author(),
                 user: msg.get_author_from(users).cloned(),
                 message: msg.get_content().to_string(),
-                user_style: Style::new().dim(),
+                user_style: Style::new().cyan(),
                 message_style: Style::new(),
             }),
             RoomEvent::UserLeft(uuid) => {
