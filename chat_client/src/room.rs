@@ -1,4 +1,9 @@
-use std::{collections::HashMap, num::NonZero, sync::mpsc::SyncSender, time::Instant};
+use std::{
+    collections::{HashMap, VecDeque},
+    num::NonZero,
+    sync::mpsc::SyncSender,
+    time::{Duration, Instant},
+};
 
 use chat_lib::types::{Message, User};
 use tokio::sync::mpsc::Receiver;
@@ -34,6 +39,8 @@ pub struct Room {
     name: String,
     tx: SyncSender<WsAction>,
     rx: Receiver<WsEvent>,
+    pending_requests: VecDeque<WsAction>,
+    timeout_until: Option<Instant>,
     /// # Action queue
     /// Where the key is the action and the value is when it was sent
     active_requests: HashMap<WsAction, Instant>,
@@ -59,8 +66,10 @@ impl Room {
             self_id: None,
             scoll_offset: None,
             name: name.to_string(),
+            pending_requests: VecDeque::new(),
             active_requests: HashMap::new(),
             state: RoomState::Pending,
+            timeout_until: None,
         }
     }
 
@@ -99,7 +108,7 @@ impl Room {
     pub fn poll_pending_events(&mut self) {
         while let Ok(event) = self.rx.try_recv() {
             self.active_requests
-                .retain(|k, _| event_satisfies_action(&event, k, self.self_id));
+                .retain(|k, _| !event_satisfies_action(&event, k, self.self_id));
             self.handle_event(event);
         }
 
@@ -107,7 +116,7 @@ impl Room {
             .retain(|_, v| v.elapsed() < ACTION_LIFETIME);
     }
 
-    pub fn send_sync_requests(&mut self) {
+    pub fn sync(&mut self) {
         if self.self_user().is_none() {
             self.send_action(WsAction::RequestSelf);
         }
@@ -251,16 +260,48 @@ impl Room {
                     self.set_user(user);
                 }
             }
-            WsEvent::Error(err) => {
+            WsEvent::TimeoutAdded(secs) => {
+                self.add_timeout(secs);
+            }
+            WsEvent::FatalError(err) => {
                 self.error(err);
             }
+            WsEvent::SoftError(err) => {
+                crate::notif_error!("{err}");
+            }
+        }
+    }
+
+    pub fn add_action(&mut self, action: WsAction) {
+        self.pending_requests.push_back(action);
+    }
+
+    pub fn process_pending_actions(&mut self) {
+        self.update_timeout();
+
+        if self.can_send_messages() {
+            while let Some(msg) = self.pending_requests.pop_front() {
+                self.send_action(msg);
+            }
+        }
+    }
+
+    pub fn can_send_messages(&self) -> bool {
+        self.timeout_until.is_none()
+    }
+
+    fn update_timeout(&mut self) {
+        if let Some(t) = self.timeout_until
+            && t < Instant::now()
+        {
+            self.timeout_until = None;
         }
     }
 
     // TODO: Handle the errors gracefully
     /// returns true if the action was sent,
     /// false if the action is already in the queue
-    pub fn send_action(&mut self, action: WsAction) -> bool {
+    fn send_action(&mut self, action: WsAction) {
         let buffer = action_should_buffer(&action);
 
         if !buffer || !self.active_requests.contains_key(&action) {
@@ -271,11 +312,16 @@ impl Room {
                 let now = Instant::now();
                 self.active_requests.insert(action, now);
             }
-
-            true
-        } else {
-            false
         }
+    }
+
+    fn add_timeout(&mut self, secs: u64) {
+        let added = Duration::from_secs(secs.into());
+        self.timeout_until = Some(
+            self.timeout_until
+                .map(|t| t + added)
+                .unwrap_or(Instant::now() + added),
+        );
     }
 
     fn add_user(&mut self, user: User) -> bool {

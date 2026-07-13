@@ -239,7 +239,7 @@ where
 
     async fn send_timeout_message(&mut self) -> WsResult {
         self.stream
-            .send(ServerMessage::TimeoutAdded(TIMEOUT_DURATION).as_wsmsg())
+            .send(ServerMessage::TimeoutAdded(TIMEOUT_DURATION.as_secs()).as_wsmsg())
             .await
     }
 

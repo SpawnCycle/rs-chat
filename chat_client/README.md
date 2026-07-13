@@ -9,8 +9,8 @@
 - [x] Config support
 - [x] Multi line messages and events
 - [x] Ability to connect to multiple rooms (from different servers)
+- [x] Help menu/Other helpful binds
 - [ ] Better ui
-- [ ] Help menu/Other helpful binds
 - [ ] Better documentation
 
 ## Road to 0.1.0 (inital release)
@@ -20,4 +20,6 @@
 - [x] The ability to join a room (apart from the default one)
 - [x] The ability to switch rooms
 - [x] The ability to quit a room
+- [x] Implementing all of the server messages
+- [x] Respecting the timeout
 - [ ] Tests

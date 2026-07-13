@@ -52,8 +52,7 @@ impl AppContext {
     }
 
     pub fn update(&mut self) {
-        self.poll_room_events();
-        self.send_sync_requests();
+        self.update_rooms();
         self.poll_tasks();
         self.process_join_queue();
         self.update_notifications();
@@ -111,8 +110,8 @@ impl AppContext {
     fn new_room(&self, base: &Url, room_name: &str) -> (Room, tokio::task::JoinHandle<()>) {
         let (mut room, ws) = connect_room_ws(&self.config.web, base, room_name);
 
-        room.send_action(WsAction::RequestSelf);
-        room.send_action(WsAction::RequestAll);
+        room.add_action(WsAction::RequestSelf);
+        room.add_action(WsAction::RequestAll);
 
         (room, ws)
     }
@@ -206,6 +205,18 @@ impl AppContext {
         self.rooms.retain(|_, room| room.active());
     }
 
+    pub fn update_rooms(&mut self) {
+        self.poll_room_events();
+        self.send_sync_requests();
+        self.send_room_actions();
+    }
+
+    pub fn send_room_actions(&mut self) {
+        for room in self.rooms.values_mut() {
+            room.process_pending_actions();
+        }
+    }
+
     pub fn poll_room_events(&mut self) {
         for room in self.rooms.values_mut() {
             room.poll_pending_events();
@@ -217,7 +228,7 @@ impl AppContext {
 
     pub fn send_sync_requests(&mut self) {
         for room in self.rooms.values_mut() {
-            room.send_sync_requests();
+            room.sync();
         }
     }
 

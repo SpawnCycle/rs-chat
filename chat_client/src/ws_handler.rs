@@ -26,9 +26,14 @@ pub enum WsEvent {
     UserRemove(Uuid),
     Message(Message),
     Banned(Duration, String),
+    /// The amount of timeout added in seconds
+    TimeoutAdded(u64),
     Quit,
 
-    Error(String),
+    /// A non-fatal error that should still be reported
+    SoftError(String),
+    /// A fatal error
+    FatalError(String),
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -238,35 +243,43 @@ impl WsHandler {
 
         match msg {
             ServerMessage::NewMessage(message) => {
-                let _ = self.tx.send(WsEvent::Message(message)).await;
+                self.send_event(WsEvent::Message(message)).await;
             }
             ServerMessage::UserLeft(user) => {
-                let _ = self.tx.send(WsEvent::UserRemove(*user.get_id())).await;
+                self.send_event(WsEvent::UserRemove(*user.get_id())).await;
             }
             ServerMessage::UserJoined(user) => {
-                let _ = self.tx.send(WsEvent::UserAdd(user)).await;
+                self.send_event(WsEvent::UserAdd(user)).await;
             }
             ServerMessage::UserNameChange(user) => {
-                let _ = self.tx.send(WsEvent::UserChange(user)).await;
+                self.send_event(WsEvent::UserChange(user)).await;
             }
             ServerMessage::SelfData(user) => {
-                let _ = self.tx.send(WsEvent::SelfInfo(user)).await;
+                self.send_event(WsEvent::SelfInfo(user)).await;
             }
             ServerMessage::UserData(user) => {
-                let _ = self.tx.send(WsEvent::UserInfo(user)).await;
+                self.send_event(WsEvent::UserInfo(user)).await;
             }
             ServerMessage::Banned { duration, reason } => {
-                let _ = self.tx.send(WsEvent::Banned(duration, reason)).await;
+                self.send_event(WsEvent::Banned(duration, reason)).await;
             }
             ServerMessage::AllUsers(users) => {
-                let _ = self.tx.send(WsEvent::AllUserInfo(users)).await;
+                self.send_event(WsEvent::AllUserInfo(users)).await;
             }
-            ServerMessage::UnsupportedMessage(_)
-            | ServerMessage::TimeoutAdded(_)
-            | ServerMessage::InvalidUser(_)
-            | ServerMessage::NameTooLong(_) => {
-                // TODO: implement these
-                log::error!("Server sending unimplemented data: {msg:?}");
+            ServerMessage::TimeoutAdded(secs) => {
+                self.send_event(WsEvent::TimeoutAdded(secs)).await;
+            }
+            ServerMessage::UnsupportedMessage(err) => {
+                self.send_event(WsEvent::SoftError(err)).await;
+            }
+            ServerMessage::InvalidUser(id) => {
+                self.send_event(WsEvent::SoftError(format!(
+                    "Tried to get a user that doesn't exist: {id}"
+                )))
+                .await;
+            }
+            ServerMessage::NameTooLong(err) => {
+                self.send_event(WsEvent::SoftError(err)).await;
             }
             ServerMessage::Heartbeat => {
                 // Nothing needs to be done
@@ -274,5 +287,9 @@ impl WsHandler {
         }
 
         Ok(())
+    }
+
+    async fn send_event(&mut self, event: WsEvent) {
+        let _ = self.tx.send(event).await;
     }
 }

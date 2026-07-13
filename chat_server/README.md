@@ -2,10 +2,11 @@
 
 ## Planned Features:
 
+- [x] Rate limiting
+- [ ] Tls
 - [ ] Query parameters for rooms (e.g. set initial name)
 - [ ] Versioning
 - [ ] Actual profiles
 - [ ] Command line argument support
 - [ ] Config support
-- [ ] Rate limiting
 - [ ] Better moderation system (copy the rustrict example and modify it)

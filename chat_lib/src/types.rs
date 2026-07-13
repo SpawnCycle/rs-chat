@@ -37,7 +37,8 @@ pub enum ServerMessage {
         duration: Duration,
         reason: String,
     },
-    TimeoutAdded(Duration),
+    /// The amount of timeout added in seconds
+    TimeoutAdded(u64),
     /// Only here so you don't get randomly disconnected
     Heartbeat,
 }

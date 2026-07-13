@@ -2,7 +2,7 @@ use crossterm::event::Event;
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect, Spacing},
-    style::Style,
+    style::{Style, Stylize},
     symbols::merge::MergeStrategy,
     text::{Line, Text},
     widgets::{Block, Borders, Clear, Paragraph},
@@ -195,7 +195,7 @@ impl Root<'_> {
                 ));
             }
             input => {
-                self.forward_input(input);
+                self.forward_input(ctx, input);
             }
         }
 
@@ -298,7 +298,9 @@ impl Root<'_> {
 
         let chunks = layout().split(area);
         let mut name = String::from("Not in a room");
+        let mut can_message = false;
         if let Some(room) = ctx.current_room() {
+            can_message = room.can_send_messages();
             name = room
                 .self_user()
                 .map_or("Loading...".to_owned(), |u| u.get_name().to_owned());
@@ -319,7 +321,14 @@ impl Root<'_> {
         } else {
             draw_top_bar(f, chunks[0], name);
         }
-        f.render_widget(&self.message_field, chunks[2]);
+        if can_message {
+            f.render_widget(&self.message_field, chunks[2]);
+        } else {
+            let block = Block::bordered();
+            let area = block.inner(chunks[2]);
+            f.render_widget(block, chunks[2]);
+            f.render_widget(Text::from("You can't message right now").dark_gray(), area);
+        }
     }
 
     fn submit_text(&mut self, ctx: &mut AppContext) {
@@ -338,11 +347,17 @@ impl Root<'_> {
         }
     }
 
-    fn forward_input(&mut self, input: Input) {
-        if let Some(active) = &mut self.active_text_area {
-            active.input(input);
-        } else {
-            self.message_field.input(input);
+    fn forward_input(&mut self, ctx: &AppContext, input: Input) {
+        // Doesn't really make sense to accept input into
+        // any of the text area if the user is not in a room
+        if let Some(room) = ctx.current_room()
+            && room.can_send_messages()
+        {
+            if let Some(active) = &mut self.active_text_area {
+                active.input(input);
+            } else {
+                self.message_field.input(input);
+            }
         }
     }
 
