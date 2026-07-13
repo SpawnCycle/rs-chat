@@ -4,7 +4,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect, Spacing},
     style::{Style, Stylize},
     symbols::merge::MergeStrategy,
-    text::{Line, Text},
+    text::{Line, Span, Text, ToSpan},
     widgets::{Block, Borders, Clear, Paragraph},
 };
 use ratatui_textarea::{Input, Key, TextArea};
@@ -17,7 +17,7 @@ use crate::{
         room_switch::RoomSwitchModal, screen::Screen, text_popup::TextPopup,
     },
     consts::TUI_HELP_TEXT,
-    helper::text_area,
+    helper::{RoomLocation, text_area},
     room::RoomState,
 };
 
@@ -53,6 +53,10 @@ fn help_popup() -> TextPopup<'static> {
             }
         )
     })
+}
+
+fn loc_domain(loc: &RoomLocation) -> String {
+    loc.url.host_str().unwrap_or("unknown").to_string()
 }
 
 impl Component for Root<'_> {
@@ -213,8 +217,9 @@ impl Root<'_> {
                 .rooms
                 .keys()
                 .map(|r| {
-                    // TODO: think about how to display this better
-                    r.room_name.chars().count()
+                    let width = r.room_name.chars().count() + loc_domain(r).chars().count();
+                    // +2 for braces and + 1 for the space
+                    width + 3
                 })
                 .max()
                 .unwrap_or(5) as u16;
@@ -270,8 +275,10 @@ impl Root<'_> {
                 } else {
                     style
                 };
+                let domain = loc_domain(loc);
+                let domain = format!("({domain})");
 
-                Line::from(s).style(style)
+                Line::from_iter([Span::from(s), " ".to_span(), domain.green()]).style(style)
             })
             .collect::<Text>();
         let rooms = Paragraph::new(rooms).block(
