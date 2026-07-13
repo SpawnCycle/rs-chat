@@ -105,6 +105,10 @@ impl Room {
         self.self_id.and_then(|id| self.get_user(id))
     }
 
+    pub fn room_name(&self) -> &str {
+        &self.name
+    }
+
     pub fn poll_pending_events(&mut self) {
         while let Ok(event) = self.rx.try_recv() {
             self.active_requests

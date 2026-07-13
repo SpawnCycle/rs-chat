@@ -8,6 +8,7 @@ mod room_switch;
 mod root;
 mod screen;
 mod text_popup;
+mod user_view;
 
 use std::fmt::Debug;
 

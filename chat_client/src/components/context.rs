@@ -248,6 +248,13 @@ impl AppContext {
     }
 
     #[must_use]
+    pub fn current_room_with_loc(&self) -> Option<(&RoomLocation, &Room)> {
+        self.current_room_location
+            .as_ref()
+            .and_then(|r| self.rooms.get_key_value(r))
+    }
+
+    #[must_use]
     pub fn has_server(&self, url: &Url) -> bool {
         self.rooms.iter().any(|r| r.0.url == *url)
     }

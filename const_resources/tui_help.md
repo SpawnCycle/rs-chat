@@ -11,6 +11,7 @@ On most screens you can exit them by pressing Ctrl+q.
 Ctrl+n: rename yourself in the current room
 Ctrl+h: view this help popup
 Ctrl+l: view the logs
+Ctrl+f: view everyone in the current room
 Ctrl+r: open the room join modal
 Ctrl+s: open the room switch modal
 Ctrl+b: toggle the side bar

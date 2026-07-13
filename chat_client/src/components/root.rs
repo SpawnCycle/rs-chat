@@ -14,7 +14,7 @@ use crate::{
     components::{
         AppContext, Component, EventResult, log_view::LogView, notification_view::NotificationView,
         popup::Popup, popup_options::PopupOptions, room_join::RoomJoinModal,
-        room_switch::RoomSwitchModal, screen::Screen, text_popup::TextPopup,
+        room_switch::RoomSwitchModal, screen::Screen, text_popup::TextPopup, user_view::UserView,
     },
     consts::TUI_HELP_TEXT,
     helper::{RoomLocation, text_area},
@@ -197,6 +197,18 @@ impl Root<'_> {
                     NotificationView::new().boxed(),
                     opts,
                 ));
+            }
+            Input {
+                key: Key::Char('f'),
+                ctrl: true,
+                ..
+            } => {
+                if let Some((loc, r)) = ctx.current_room_with_loc() {
+                    let name = r.room_name();
+                    let domain = loc_domain(loc);
+                    let opts = PopupOptions::new().set_name(format!("People in {name} ({domain})"));
+                    return EventResult::push_component(Popup::new(UserView::new().boxed(), opts));
+                }
             }
             input => {
                 self.forward_input(ctx, input);
