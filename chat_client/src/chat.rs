@@ -2,12 +2,16 @@ use std::num::NonZero;
 
 use ratatui::{
     Frame,
-    layout::Rect,
+    layout::{Constraint, Direction::Horizontal, Layout, Rect},
+    style::Stylize,
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders},
 };
 
-use crate::event::{EventType, RoomEvent, UserLocator};
+use crate::{
+    components::AppContext,
+    event::{EventType, RoomEvent, UserLocator},
+};
 
 #[derive(Clone, Copy, Debug)]
 pub enum Offset {
@@ -22,21 +26,33 @@ pub fn top_block<'a>() -> Block<'a> {
     Block::new().borders(Borders::BOTTOM)
 }
 
-pub fn draw_top_bar<N>(f: &'_ mut Frame, area: Rect, name: N)
-where
-    N: AsRef<str>,
-{
-    let msg = "Press Ctrl+h to display help menu";
-    let name = name.as_ref().to_string();
-    #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
-    let spaces =
-        i32::from(area.width) - (name.chars().count() as i32) - 1 - (msg.chars().count() as i32);
-    #[allow(clippy::cast_sign_loss)]
-    let spaces = spaces.max(1) as u32;
-    let text = name + " ".repeat(spaces as usize).as_str() + msg;
-    let para = Paragraph::new(text).block(top_block());
+pub fn draw_top_bar(f: &'_ mut Frame, area: Rect, name: &str, ctx: &AppContext) {
+    let block = Block::new().borders(Borders::BOTTOM);
+    f.render_widget(&block, area);
+    let area = block.inner(area);
 
-    f.render_widget(para, area);
+    let name_len = name.chars().count();
+    let name = name.to_string();
+
+    let chunks = Layout::new(
+        Horizontal,
+        [Constraint::Length(name_len as u16), Constraint::Fill(1)],
+    )
+    .split(area);
+
+    let msg = "Press Ctrl+h to display help menu";
+
+    let notif_count = ctx.notifications().len();
+    let left = Line::from(name);
+    let right = Line::from_iter([
+        Span::from(notif_count.to_string()).red(),
+        Span::from(" "),
+        Span::from(msg),
+    ])
+    .right_aligned();
+
+    f.render_widget(left, chunks[0]);
+    f.render_widget(right, chunks[1]);
 }
 
 pub fn draw_room_events(

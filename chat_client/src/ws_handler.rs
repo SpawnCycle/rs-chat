@@ -89,6 +89,7 @@ impl WsHandler {
         let stream = Self::connect_websocket(url).await;
 
         if let Err(err) = &stream {
+            let _ = tx.send(WsEvent::FatalError(err.to_string())).await;
             let _ = tx.send(WsEvent::Quit).await;
             log::error!("Could not connect to server websocket: {err}");
         }

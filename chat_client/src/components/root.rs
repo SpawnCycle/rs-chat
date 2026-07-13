@@ -319,7 +319,7 @@ impl Root<'_> {
         if let Some(ta) = &self.active_text_area {
             f.render_widget(ta, chunks[0]);
         } else {
-            draw_top_bar(f, chunks[0], name);
+            draw_top_bar(f, chunks[0], &name, ctx);
         }
         if can_message {
             f.render_widget(&self.message_field, chunks[2]);

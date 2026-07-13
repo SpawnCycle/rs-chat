@@ -264,10 +264,13 @@ impl Room {
                 self.add_timeout(secs);
             }
             WsEvent::FatalError(err) => {
+                let room_name = &self.name;
+                crate::notif_error!("{room_name} (FATAL): {err}");
                 self.error(err);
             }
             WsEvent::SoftError(err) => {
-                crate::notif_error!("{err}");
+                let room_name = &self.name;
+                crate::notif_warn!("{room_name}: {err}");
             }
         }
     }
