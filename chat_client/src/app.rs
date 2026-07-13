@@ -60,7 +60,6 @@ impl App {
         let default_room = self.context.config.web.default_room.clone();
         let default_url = self.context.config.web.url.clone();
         self.context.join_room(default_url, &default_room);
-        crate::notif_info!("TEST 123");
     }
 
     pub fn render(&self, f: &mut Frame<'_>) {
