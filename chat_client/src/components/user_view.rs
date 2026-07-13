@@ -64,7 +64,7 @@ impl Component for UserView {
     ) {
         let mut lines = Vec::new();
         if let Some(r) = ctx.current_room() {
-            for (id, usr) in r.users() {
+            for (id, usr) in r.users().iter().filter(|(id, _)| r.user_in_room(**id)) {
                 lines.push(Line::from_iter([
                     usr.get_name().blue(),
                     " ".to_span(),

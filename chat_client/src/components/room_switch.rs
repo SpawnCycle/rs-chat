@@ -59,7 +59,7 @@ impl RoomSwitchModal<'_> {
     }
 
     /// TODO: sort based on matched %?
-    fn update_matches(&mut self, ctx: &mut AppContext) {
+    fn update_matches(&mut self, ctx: &AppContext) {
         if self.searching_rooms {
             let query = self.room_field.lines()[0].clone();
 
@@ -73,10 +73,11 @@ impl RoomSwitchModal<'_> {
 
             self.matched_rows = names.into_iter().collect();
         } else {
+            let server = &self.server_field.lines()[0];
             let servers = ctx
                 .rooms
                 .iter()
-                .filter(|r| r.0.url == self.search_url)
+                .filter(|r| r.0.url.as_str().contains(server))
                 .map(|r| r.0.url.to_string())
                 .collect::<HashSet<_>>();
 
@@ -156,10 +157,10 @@ impl Component for RoomSwitchModal<'_> {
                 } else {
                     self.server_field.input(event.clone());
                 }
-
-                self.update_matches(ctx);
             }
         }
+
+        self.update_matches(ctx);
 
         EventResult::consumed()
     }

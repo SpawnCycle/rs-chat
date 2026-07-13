@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     num::NonZero,
     sync::mpsc::SyncSender,
     time::{Duration, Instant},
@@ -35,6 +35,7 @@ pub struct Room {
     events: Vec<RoomEvent>,
     self_id: Option<Uuid>,
     users: HashMap<Uuid, User>,
+    users_in_room: HashSet<Uuid>,
     scoll_offset: Option<Offset>,
     name: String,
     tx: SyncSender<WsAction>,
@@ -70,6 +71,7 @@ impl Room {
             active_requests: HashMap::new(),
             state: RoomState::Pending,
             timeout_until: None,
+            users_in_room: HashSet::new(),
         }
     }
 
@@ -297,6 +299,10 @@ impl Room {
         self.timeout_until.is_none()
     }
 
+    pub fn user_in_room(&self, id: Uuid) -> bool {
+        self.users_in_room.contains(&id)
+    }
+
     fn update_timeout(&mut self) {
         if let Some(t) = self.timeout_until
             && t < Instant::now()
@@ -341,6 +347,7 @@ impl Room {
     }
 
     fn set_user(&mut self, user: User) {
+        self.users_in_room.insert(*user.get_id());
         self.users.insert(*user.get_id(), user);
     }
 
@@ -350,7 +357,7 @@ impl Room {
 
     fn remove_user(&mut self, id: Uuid) {
         // do not remove the user to keep all the references alive
-        // self.users.remove(id);
+        self.users_in_room.remove(&id);
         self.add_event(RoomEvent::UserLeft(id));
     }
 
