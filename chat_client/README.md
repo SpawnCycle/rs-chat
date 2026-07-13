@@ -22,4 +22,7 @@
 - [x] The ability to quit a room
 - [x] Implementing all of the server messages
 - [x] Respecting the timeout
+
+## Post 0.1.0
+
 - [ ] Tests

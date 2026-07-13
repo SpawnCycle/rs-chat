@@ -69,13 +69,6 @@ impl Component for TextPopup<'_> {
             } => {
                 self.scroll = self.scroll.saturating_sub(1);
             }
-            Input {
-                key: Key::Char('q'),
-                ctrl: true,
-                ..
-            } if self.options.allow_quit => {
-                return EventResult::quit();
-            }
             _ => {
                 if (self.extra_toggle)(event) {
                     return EventResult::pop_component();
