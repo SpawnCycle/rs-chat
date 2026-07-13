@@ -1,4 +1,4 @@
-//! based on https://stackoverflow.com/questions/74482350/adding-length-limit-when-deserializing-a-string-a-vec-or-an-array
+//! based on <https://stackoverflow.com/questions/74482350/adding-length-limit-when-deserializing-a-string-a-vec-or-an-array>
 
 use anyhow::anyhow;
 use serde::{de, ser};

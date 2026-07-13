@@ -36,6 +36,7 @@ pub fn draw_top_bar(f: &'_ mut Frame, area: Rect, name: &str, ctx: &AppContext) 
 
     let chunks = Layout::new(
         Horizontal,
+        #[allow(clippy::cast_possible_truncation)]
         [Constraint::Length(name_len as u16), Constraint::Fill(1)],
     )
     .split(area);
