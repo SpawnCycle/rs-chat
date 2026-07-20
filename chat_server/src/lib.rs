@@ -16,6 +16,7 @@ struct AppState {
     components: SyncRoomComponents,
 }
 
+mod app_error;
 mod config;
 mod consts;
 pub mod limited_string;

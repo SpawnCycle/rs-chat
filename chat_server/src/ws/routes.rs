@@ -3,16 +3,16 @@ use std::future;
 use axum::{
     Json,
     extract::{Path, State, WebSocketUpgrade},
-    response::IntoResponse,
+    response::Response,
 };
 use chat_lib::{discovery::Discovery, prelude::*};
-
 use names::{Generator, Name};
-use rustrict::Context;
+use rustrict::{CensorStr, Context};
 use uuid::Uuid;
 
 use crate::{
     AppState,
+    app_error::AppError,
     consts::MAX_ROOM_LENGTH,
     limited_string::LimitedString,
     ws::{handler::WsHandler, room::RoomComponents},
@@ -52,23 +52,28 @@ pub async fn room_ws(
     ws: WebSocketUpgrade,
     path: Path<LimitedString<{ MAX_ROOM_LENGTH }>>,
     State(state): State<AppState>,
-) -> impl IntoResponse {
+) -> Result<Response, AppError> {
+    let path = path.to_string();
+    if path.is_inappropriate() {
+        return Err(AppError::bad_request("Inappropriate room name"));
+    }
+
     // TODO: make graceful shutdown
     let sd = future::pending();
     let rooms = state.components;
-    let path = path.to_string();
     let room_components = rooms
         .lock()
         .await
         .entry(path.clone())
         .or_insert(RoomComponents::sync())
         .clone();
+
     let id = Uuid::new_v4();
     let tx = room_components.lock().await.tx.clone();
     let rx = tx.subscribe();
     let room = room_components.lock().await.room.clone();
 
-    ws.on_upgrade(move |stream| async move {
+    let ws = ws.on_upgrade(move |stream| async move {
         let name = Generator::with_naming(Name::Numbered)
             .next()
             .expect("Generator should not fail");
@@ -96,5 +101,7 @@ pub async fn room_ws(
         if room.lock().await.is_empty() {
             rooms.lock().await.remove_entry(&path);
         }
-    })
+    });
+
+    Ok(ws)
 }
