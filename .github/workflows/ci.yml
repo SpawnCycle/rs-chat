@@ -45,3 +45,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Run tests
         run: cargo test --workspace --verbose
+  lib-features:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-all-features
+        run: cargo install cargo-all-features
+      - name: Test lib feature flags
+        run: cd chat_lib && cargo all-features check
