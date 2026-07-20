@@ -11,7 +11,7 @@ A chat server
 workspace = true
 
 [dependencies]
-chat_lib = { path = "../chat_lib", features = ["server"] }
+chat_lib = { path = "../chat_lib", features = ["ws_conn", "server", "ws_msg"] }
 
 anyhow = { workspace = true }
 axum = { workspace = true }
@@ -24,7 +24,7 @@ tokio = { workspace = true }
 uuid = { workspace = true }
 
 tower = { version = "0.5.3", features = ["full", "log"] }
-tower-http = { version = "0.6.11", features = ["trace"] }
+tower-http = { version = "0.7.0", features = ["trace"] }
 
 log4rs = { version = "1.4.0", features = ["all_components"] }
 tracing = { version = "0.1.44", features = ["log-always"] }

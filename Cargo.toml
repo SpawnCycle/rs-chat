@@ -23,15 +23,17 @@ missing_debug_implementations = "warn"
 
 [workspace.dependencies]
 axum = { version = "0.8.9", features = ["ws", "json"] }
-tokio = { version = "1.52.2", features = ["full"] }
-uuid = { version = "1.23.1", features = ["v4", "serde"] }
 semver = { version = "1.0.28", features = ["serde"] }
-serde = { version = "1.0.228", features = ["derive"] }
-tokio-tungstenite = "0.29.0"
-futures = "0.3.32"
-thiserror = "2.0.18"
-anyhow = "1.0.102"
-log = "0.4.29"
+serde = { version = "1.0.229", features = ["derive"] }
+tokio = { version = "1.53.0", features = ["full"] }
+uuid = { version = "1.24.0", features = ["v4", "serde"] }
+
+anyhow = "1.0.104"
+futures = "0.3.33"
+log = "0.4.33"
+thiserror = "2.0.19"
+tokio-tungstenite = "0.30.0"
+tungstenite = "0.30.0"
 
 [profile.release]
 opt-level = 3

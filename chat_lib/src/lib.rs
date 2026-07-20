@@ -1,11 +1,11 @@
 use semver::Version;
 
-#[cfg(feature = "server")]
+#[cfg(feature = "ws_msg")]
 pub mod ws_message;
 
 #[cfg(feature = "ws_conn")]
 pub mod ws_connection;
-#[cfg(feature = "mock_ws")]
+#[cfg(feature = "ws_conn")]
 pub mod ws_mock;
 
 pub mod consts;

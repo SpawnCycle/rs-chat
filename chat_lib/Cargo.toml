@@ -13,21 +13,20 @@ workspace = true
 [features]
 default = []
 
+ws_msg = ["dep:tokio-tungstenite"]
 ws_conn = ["dep:tokio-tungstenite"]
-mock_ws = ["ws_conn"]
+client = ["dep:tokio-tungstenite"]
 server = ["dep:axum"]
 
 [dependencies]
-tokio-tungstenite = { workspace = true, optional = true }
-anyhow = { workspace = true }
-
 axum = { workspace = true, optional = true }
+tokio-tungstenite = { workspace = true, optional = true }
 
+anyhow = { workspace = true }
+futures = { workspace = true }
+semver = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true }
 uuid = { workspace = true }
-semver = { workspace = true }
-futures = { workspace = true }
 
-serde_json = "1.0.149"
-names = "0.14.0"
+serde_json = "1.0.150"
