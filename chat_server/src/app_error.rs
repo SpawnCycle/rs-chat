@@ -37,7 +37,7 @@ impl AppError {
 
     fn message(&self) -> &str {
         match self {
-            AppError::BadRequest(msg) | AppError::ServerError(msg) => &msg,
+            AppError::BadRequest(msg) | AppError::ServerError(msg) => msg,
         }
     }
 }
