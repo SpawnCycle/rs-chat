@@ -92,12 +92,16 @@ pub async fn room_ws(
         let mut loop_ctx = WsHandler::new(stream.into(), ctx, id, rx, tx, room.clone(), &mut sd);
 
         loop {
-            if loop_ctx
-                .ws_step()
-                .await
-                .inspect_err(|err| log::info!("Couldn't send a message: {err}"))
-                .unwrap_or(true)
-            {
+            let should_quit = match loop_ctx.ws_step().await {
+                Ok(quit) => quit,
+                Err(err) => {
+                    log::warn!("Couldn't send a message: {err}");
+                    let _ = loop_ctx.close_socket().await;
+                    true
+                }
+            };
+
+            if should_quit {
                 break;
             }
         }

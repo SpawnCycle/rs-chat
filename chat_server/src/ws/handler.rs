@@ -276,7 +276,7 @@ where
         self.in_room = false;
     }
 
-    async fn close_socket(&mut self) -> WsResult {
+    pub async fn close_socket(&mut self) -> WsResult {
         self.exit_room().await;
         self.stream.send(Message::Close(None)).await?;
 
