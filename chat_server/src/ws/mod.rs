@@ -7,9 +7,11 @@ use tokio::sync::{Mutex, broadcast};
 use crate::ws::room::RoomComponents;
 
 mod handler;
-pub mod room;
+mod room_args;
 mod router;
 mod routes;
+
+pub mod room;
 
 pub use router::paths;
 

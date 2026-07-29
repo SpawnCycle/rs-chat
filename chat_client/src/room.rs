@@ -276,7 +276,7 @@ impl Room {
             }
             WsEvent::SoftError(err) => {
                 let room_name = &self.name;
-                crate::notif_warn!("{room_name}: {err}");
+                crate::notif_warn!("room({room_name}): {err}");
             }
         }
     }

@@ -2,7 +2,7 @@ use std::future;
 
 use axum::{
     Json,
-    extract::{Path, State, WebSocketUpgrade},
+    extract::{Path, Query, State, WebSocketUpgrade},
     response::Response,
 };
 use chat_lib::{discovery::Discovery, prelude::*};
@@ -15,7 +15,7 @@ use crate::{
     app_error::AppError,
     consts::MAX_ROOM_LENGTH,
     limited_string::LimitedString,
-    ws::{handler::WsHandler, room::RoomComponents},
+    ws::{handler::WsHandler, room::RoomComponents, room_args::RoomArgs},
 };
 
 /// GET /
@@ -52,6 +52,7 @@ pub async fn room_ws(
     ws: WebSocketUpgrade,
     path: Path<LimitedString<{ MAX_ROOM_LENGTH }>>,
     State(state): State<AppState>,
+    Query(args): Query<RoomArgs>,
 ) -> Result<Response, AppError> {
     let path = path.to_string();
     if path.is_inappropriate() {
@@ -74,9 +75,12 @@ pub async fn room_ws(
     let room = room_components.lock().await.room.clone();
 
     let ws = ws.on_upgrade(move |stream| async move {
-        let name = Generator::with_naming(Name::Numbered)
-            .next()
-            .expect("Generator should not fail");
+        let name = args.name.filter(|n| !n.is_inappropriate()).unwrap_or(
+            Generator::with_naming(Name::Numbered)
+                .next()
+                .expect("Generator should not fail"),
+        );
+
         let mut sd = sd.clone();
         let new_user = User::new(id, name);
         {

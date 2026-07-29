@@ -32,11 +32,13 @@ pub enum ServerMessage {
     SelfData(User),
     UnsupportedMessage(String),
     InvalidUser(Uuid),
-    NameTooLong(String),
     Banned {
         duration: Duration,
         reason: String,
     },
+    NameTooLong(String),
+    NameInappropriate,
+
     /// The amount of timeout added in seconds
     TimeoutAdded(u64),
     /// Only here so you don't get randomly disconnected

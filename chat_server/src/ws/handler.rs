@@ -6,7 +6,7 @@ use chat_lib::{
     ws_connection::{Message, WsConnection},
 };
 use futures::{SinkExt, StreamExt};
-use rustrict::Context;
+use rustrict::{CensorStr, Context};
 use tokio::{
     sync::broadcast::{self, error::RecvError},
     time::sleep_until,
@@ -138,28 +138,7 @@ where
                     self.send_msg(&msg).await?;
                 }
                 ClientMessage::ChangeUserName(name) => {
-                    let mut room = self.room.lock().await;
-                    if name.chars().count() > MAX_NAME_LENGTH {
-                        log::warn!(
-                            "User {} tried to change name above the allowed character limit",
-                            self.id
-                        );
-                        self.stream
-                            .send(ServerMessage::NameTooLong(name).as_wsmsg())
-                            .await?;
-                        return Ok(false);
-                    }
-                    match room.get_user_mut(&self.id) {
-                        Some(user) => {
-                            user.set_name(name);
-                            let _ = self.tx.send(ServerMessage::UserNameChange(user.clone()));
-                        }
-                        None => {
-                            self.stream
-                                .send(ServerMessage::InvalidUser(self.id).as_wsmsg())
-                                .await?;
-                        }
-                    }
+                    self.change_name(name).await?;
                 }
                 ClientMessage::GetUserData(uuid) => {
                     if let Some(user) = self.room.lock().await.get_user(&uuid) {
@@ -193,6 +172,45 @@ where
         }
 
         Ok(false)
+    }
+
+    async fn change_name(&mut self, name: String) -> WsResult {
+        if name.chars().count() > MAX_NAME_LENGTH {
+            log::warn!(
+                "User {} tried to change name above the allowed character limit",
+                self.id
+            );
+            self.stream
+                .send(ServerMessage::NameTooLong(name).as_wsmsg())
+                .await?;
+        } else if name.is_inappropriate() {
+            self.stream
+                .send(ServerMessage::NameInappropriate.as_wsmsg())
+                .await?;
+            //
+        } else {
+            self.set_name(name).await?;
+        }
+
+        Ok(())
+    }
+
+    async fn set_name(&mut self, name: String) -> WsResult {
+        let mut room = self.room.lock().await;
+
+        match room.get_user_mut(&self.id) {
+            Some(user) => {
+                user.set_name(name);
+                let _ = self.tx.send(ServerMessage::UserNameChange(user.clone()));
+            }
+            None => {
+                self.stream
+                    .send(ServerMessage::InvalidUser(self.id).as_wsmsg())
+                    .await?;
+            }
+        }
+
+        Ok(())
     }
 
     fn update_message_counter(&mut self) {

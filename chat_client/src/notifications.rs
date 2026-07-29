@@ -101,9 +101,9 @@ pub fn notification_to_span(notif: &Notification) -> Span<'_> {
     let since_min = since / 60;
     let since_sec = since % 60;
     let out = if since_min > 0 {
-        format!("{typ}: {content} ({since_min}m {since_sec}s ago)")
+        format!("{content} ({since_min}m {since_sec}s ago)")
     } else {
-        format!("{typ}: {content} ({since_sec}s ago)")
+        format!("{content} ({since_sec}s ago)")
     };
     let out = Span::from(out);
     match typ {

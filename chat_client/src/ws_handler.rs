@@ -279,6 +279,12 @@ impl WsHandler {
             ServerMessage::UnsupportedMessage(err) | ServerMessage::NameTooLong(err) => {
                 self.send_event(WsEvent::SoftError(err)).await;
             }
+            ServerMessage::NameInappropriate => {
+                self.send_event(WsEvent::SoftError(
+                    "Tried to change name to an inappropriate one".to_string(),
+                ))
+                .await;
+            }
             ServerMessage::Heartbeat => {
                 // Nothing needs to be done
             }
