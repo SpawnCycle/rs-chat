@@ -102,12 +102,13 @@ pub async fn connect_room(
     config: &WebConfig,
     base_url: &Url,
     room_name: &str,
+    name: Option<String>,
 ) -> anyhow::Result<(Room, tokio::task::JoinHandle<()>)> {
     let discovery = room_discovery(&CLIENT, base_url).await?;
 
     log::debug!("{base_url} - {discovery:?}");
 
-    Ok(connect_room_ws(config, base_url, room_name))
+    Ok(connect_room_ws(config, base_url, room_name, name))
 }
 
 /// Connects to a room without checking if `base_url` houses a valid chat server
@@ -115,6 +116,7 @@ pub fn connect_room_ws(
     config: &WebConfig,
     base_url: &Url,
     room_name: &str,
+    name: Option<String>,
 ) -> (Room, tokio::task::JoinHandle<()>) {
     let (e_tx, e_rx) = channel::<WsEvent>(CHANNEL_BUFFER_SIZE);
     let (a_tx, a_rx) = sync_channel::<WsAction>(CHANNEL_BUFFER_SIZE);
@@ -123,7 +125,7 @@ pub fn connect_room_ws(
     let room_string = room_name.to_string();
     let base_url = base_url.clone();
     let ws = tokio::spawn(async move {
-        let handler = WsHandler::new(e_tx, a_rx, web_config, room_string.clone(), base_url)
+        let handler = WsHandler::new(e_tx, a_rx, web_config, room_string.clone(), base_url, name)
             .await
             .inspect_err(|err| log::error!("Fatal error during websocket connection: {err}"));
         log::debug!("Websocket handler for {room_string} started");

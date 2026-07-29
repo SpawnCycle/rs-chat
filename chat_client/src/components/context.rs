@@ -108,7 +108,7 @@ impl AppContext {
     }
 
     fn new_room(&self, base: &Url, room_name: &str) -> (Room, tokio::task::JoinHandle<()>) {
-        let (mut room, ws) = connect_room_ws(&self.config.web, base, room_name);
+        let (mut room, ws) = connect_room_ws(&self.config.web, base, room_name, None);
 
         room.add_action(WsAction::RequestSelf);
         room.add_action(WsAction::RequestAll);

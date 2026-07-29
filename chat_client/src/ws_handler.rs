@@ -8,7 +8,7 @@ use chat_lib::{prelude::*, ws_connection::WsConnection};
 use futures::{SinkExt, StreamExt};
 use tokio::sync::mpsc::Sender;
 use tokio_tungstenite::{connect_async, tungstenite};
-use url::Url;
+use url::{Url, form_urlencoded};
 use uuid::Uuid;
 
 use crate::{
@@ -72,6 +72,7 @@ impl WsHandler {
         config: WebConfig,
         room: String,
         mut url: Url,
+        initial_name: Option<String>,
     ) -> anyhow::Result<Self> {
         // TODO: Better error reporting/handling instread of just using anyhow
         if url.scheme() == "https" {
@@ -80,13 +81,18 @@ impl WsHandler {
             url.set_scheme("ws").expect("The url should be correct");
         }
 
-        let url = &url
+        let mut url = url
             .join(&format!("room/{room}"))
             .context("Couldn't parse url string")?;
 
+        if let Some(name) = initial_name {
+            let name = form_urlencoded::byte_serialize(name.as_bytes()).collect::<String>();
+            url.set_query(Some(&format!("name={name}")));
+        }
+
         log::debug!("Trying to connect to websocket {url}");
 
-        let stream = Self::connect_websocket(url).await;
+        let stream = Self::connect_websocket(&url).await;
 
         if let Err(err) = &stream {
             let _ = tx.send(WsEvent::FatalError(err.to_string())).await;
