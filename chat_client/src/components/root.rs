@@ -327,7 +327,7 @@ impl Root<'_> {
             draw_room_events(
                 f,
                 chunks[1],
-                room.events(),
+                &room.events(),
                 room.users(),
                 room.scroll_offset(),
             );

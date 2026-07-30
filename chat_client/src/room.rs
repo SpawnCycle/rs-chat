@@ -6,11 +6,13 @@ use std::{
 };
 
 use chat_lib::types::{Message, User};
+use ringbuffer::{AllocRingBuffer, RingBuffer};
 use tokio::sync::mpsc::Receiver;
 use uuid::Uuid;
 
 use crate::{
     chat::Offset,
+    config::ChatConfig,
     consts::ACTION_LIFETIME,
     event::{RoomEvent, UserLocator},
     helper::{action_should_buffer, event_satisfies_action},
@@ -32,7 +34,7 @@ fn abs_to_rel(ev: usize, n: u32) -> Option<NonZero<u32>> {
 
 #[derive(Debug)]
 pub struct Room {
-    events: Vec<RoomEvent>,
+    events: AllocRingBuffer<RoomEvent>,
     self_id: Option<Uuid>,
     users: HashMap<Uuid, User>,
     active_users: HashSet<Uuid>,
@@ -46,6 +48,9 @@ pub struct Room {
     /// Where the key is the action and the value is when it was sent
     active_requests: HashMap<WsAction, Instant>,
     state: RoomState,
+
+    #[allow(unused)]
+    config: ChatConfig,
 }
 
 #[derive(Debug, Clone)]
@@ -58,11 +63,16 @@ pub enum RoomState {
 
 impl Room {
     #[must_use]
-    pub fn new(name: &str, tx: SyncSender<WsAction>, rx: Receiver<WsEvent>) -> Self {
+    pub fn new(
+        config: ChatConfig,
+        name: &str,
+        tx: SyncSender<WsAction>,
+        rx: Receiver<WsEvent>,
+    ) -> Self {
         Self {
             tx,
             rx,
-            events: Vec::new(),
+            events: AllocRingBuffer::new(config.buffer_size),
             users: HashMap::new(),
             self_id: None,
             scoll_offset: None,
@@ -72,6 +82,7 @@ impl Room {
             state: RoomState::Pending,
             timeout_until: None,
             active_users: HashSet::new(),
+            config,
         }
     }
 
@@ -99,8 +110,8 @@ impl Room {
         self.scoll_offset
     }
 
-    pub fn events(&self) -> &[RoomEvent] {
-        &self.events
+    pub fn events(&self) -> Vec<RoomEvent> {
+        self.events.to_vec()
     }
 
     pub fn self_user(&self) -> Option<&User> {
@@ -386,7 +397,7 @@ impl Room {
     }
 
     fn add_event(&mut self, ev: impl Into<RoomEvent>) {
-        self.events.push(ev.into());
+        self.events.enqueue(ev.into());
     }
 
     fn error(&mut self, err: String) {

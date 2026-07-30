@@ -8,6 +8,7 @@ use super::args::Cli;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     pub web: WebConfig,
+    pub chat: ChatConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -15,6 +16,11 @@ pub struct WebConfig {
     pub url: Url,
     pub default_room: String,
     pub defult_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatConfig {
+    pub buffer_size: usize,
 }
 
 impl Default for AppConfig {
@@ -27,6 +33,7 @@ impl Default for AppConfig {
                 default_room: String::from("default"),
                 defult_name: None,
             },
+            chat: ChatConfig { buffer_size: 5_000 },
         }
     }
 }

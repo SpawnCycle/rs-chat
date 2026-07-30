@@ -12,7 +12,7 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    config::WebConfig,
+    config::AppConfig,
     consts::{CHANNEL_BUFFER_SIZE, CLIENT, FOCUSED_CURSOR_STYLE, UNFOCUSED_CURSOR_STYLE},
     requests::room_discovery,
     room::Room,
@@ -99,7 +99,7 @@ pub fn apply_cursor_style(
 ///
 /// This function errors if there was an error during discovery
 pub async fn connect_room(
-    config: &WebConfig,
+    config: &AppConfig,
     base_url: &Url,
     room_name: &str,
     name: Option<String>,
@@ -113,7 +113,7 @@ pub async fn connect_room(
 
 /// Connects to a room without checking if `base_url` houses a valid chat server
 pub fn connect_room_ws(
-    config: &WebConfig,
+    config: &AppConfig,
     base_url: &Url,
     room_name: &str,
     name: Option<String>,
@@ -121,11 +121,11 @@ pub fn connect_room_ws(
     let (e_tx, e_rx) = channel::<WsEvent>(CHANNEL_BUFFER_SIZE);
     let (a_tx, a_rx) = sync_channel::<WsAction>(CHANNEL_BUFFER_SIZE);
 
-    let web_config = config.clone();
+    let config = config.clone();
     let room_string = room_name.to_string();
     let base_url = base_url.clone();
     let ws = tokio::spawn(async move {
-        let handler = WsHandler::new(e_tx, a_rx, web_config, room_string.clone(), base_url, name)
+        let handler = WsHandler::new(e_tx, a_rx, config.web, room_string.clone(), base_url, name)
             .await
             .inspect_err(|err| log::error!("Fatal error during websocket connection: {err}"));
         log::debug!("Websocket handler for {room_string} started");
@@ -140,7 +140,7 @@ pub fn connect_room_ws(
         log::debug!("Websocket handler for {room_string} ended");
     });
 
-    (Room::new(room_name, a_tx, e_rx), ws)
+    (Room::new(config.chat, room_name, a_tx, e_rx), ws)
 }
 
 /// returns if the given event satisfies a given action (self id is required for actions related to self)
