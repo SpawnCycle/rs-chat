@@ -16,7 +16,7 @@ pub struct RoomComponents {
 
 impl Debug for RoomComponents {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("RoomComponents")
+        f.write_str("<RoomComponents>")
     }
 }
 
@@ -85,7 +85,7 @@ impl Room {
     pub fn modify_or_add_user(&mut self, user: User) {
         self.users
             .entry(*user.get_id())
-            .and_modify(|usr| *usr = user.clone())
+            .and_modify(|usr| usr.clone_from(&user))
             .or_insert(user);
     }
 

@@ -19,7 +19,7 @@ impl IntoResponse for AppError {
         };
 
         res.body(Body::new(msg.to_string()))
-            .expect("The data we specified is correct")
+            .expect("The specified data is correct")
     }
 }
 
