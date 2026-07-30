@@ -71,16 +71,20 @@ pub fn draw_room_events(
             draw_lines(f, area, &chats, users, true);
         }
         Some(Offset::Relative(offset)) => {
+            let offset = (offset.get() as usize).min(chats.len().saturating_sub(height));
+
             let chats = chats
                 .rev()
-                .skip(offset.get() as usize)
+                .skip(offset)
                 .take(height)
                 .rev()
                 .collect::<Vec<_>>();
             draw_lines(f, area, &chats, users, true);
         }
         Some(Offset::Absolute(offset)) => {
-            let chats = chats.skip(offset as usize).take(height).collect::<Vec<_>>();
+            let offset = (offset as usize).saturating_sub(height);
+
+            let chats = chats.skip(offset).take(height).collect::<Vec<_>>();
             draw_lines(f, area, &chats, users, false);
         }
     }
