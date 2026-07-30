@@ -11,7 +11,7 @@ pub async fn echo_action(config: AppConfig, args: EchoArgs) -> anyhow::Result<()
         &config.web,
         &config.web.url,
         &config.web.default_room,
-        Some("echo-client".to_string()),
+        config.web.defult_name.clone(),
     )
     .await?;
 

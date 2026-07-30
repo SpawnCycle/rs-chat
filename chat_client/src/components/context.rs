@@ -96,7 +96,11 @@ impl AppContext {
             return;
         }
 
-        let (room, _) = self.new_room(&loc.url, &loc.room_name);
+        let (room, _) = self.new_room(
+            &loc.url,
+            &loc.room_name,
+            self.config.web.defult_name.clone(),
+        );
         self.current_room_or(loc.clone().into());
         self.rooms.insert(loc, room);
     }
@@ -107,8 +111,13 @@ impl AppContext {
         }
     }
 
-    fn new_room(&self, base: &Url, room_name: &str) -> (Room, tokio::task::JoinHandle<()>) {
-        let (mut room, ws) = connect_room_ws(&self.config.web, base, room_name, None);
+    fn new_room(
+        &self,
+        base: &Url,
+        room_name: &str,
+        name: Option<String>,
+    ) -> (Room, tokio::task::JoinHandle<()>) {
+        let (mut room, ws) = connect_room_ws(&self.config.web, base, room_name, name);
 
         room.add_action(WsAction::RequestSelf);
         room.add_action(WsAction::RequestAll);

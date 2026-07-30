@@ -27,6 +27,9 @@ pub struct GlobalArgs {
     /// Deletes the log file before starting the client
     #[arg(short, long, global = true)]
     pub clean: bool,
+    /// Sets the name the client will try to join as
+    #[arg(short, long, global = true)]
+    pub name: Option<String>,
 }
 
 #[derive(Debug, Clone, Subcommand)]

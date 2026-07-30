@@ -14,6 +14,7 @@ pub struct AppConfig {
 pub struct WebConfig {
     pub url: Url,
     pub default_room: String,
+    pub defult_name: Option<String>,
 }
 
 impl Default for AppConfig {
@@ -24,6 +25,7 @@ impl Default for AppConfig {
                 url: Url::from_str("http://127.0.0.1:8000/")
                     .expect("Default Connection url to be correct"),
                 default_room: String::from("default"),
+                defult_name: None,
             },
         }
     }
@@ -38,6 +40,10 @@ impl AppConfig {
 
         if let Some(room) = &args.args.room {
             self.web.default_room.clone_from(room);
+        }
+
+        if let Some(name) = &args.args.name {
+            self.web.defult_name = Some(name.clone());
         }
 
         self
