@@ -21,8 +21,7 @@ pub const WS_TIMEOUT_DURATION: Duration = Duration::from_millis(500);
 // The duration the notification poller will wait for between polling the pending events
 pub const NOTIFICATION_POLLER_TIMEOUT: Duration = Duration::from_millis(500);
 
-#[allow(clippy::duration_suboptimal_units, reason = "`from_mins` is nightly")]
-pub const NOTIFICATION_LIFETIME: Duration = Duration::from_secs(120);
+pub const NOTIFICATION_LIFETIME: Duration = Duration::from_mins(5);
 
 /// The duration for which the action is considered 'pending'
 pub const ACTION_LIFETIME: Duration = Duration::from_millis(500);
