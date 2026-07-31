@@ -292,8 +292,10 @@ impl Room {
         }
     }
 
-    pub fn add_action(&mut self, action: WsAction) {
+    pub fn action(&mut self, action: WsAction) {
         self.pending_requests.push_back(action);
+
+        self.process_pending_actions();
     }
 
     pub fn process_pending_actions(&mut self) {
