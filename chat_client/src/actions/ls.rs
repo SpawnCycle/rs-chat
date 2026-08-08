@@ -10,8 +10,12 @@ pub async fn ls_action(config: AppConfig, args: LsArgs) -> anyhow::Result<()> {
 
     let discovery = room_discovery(&CLIENT, &base_url).await?;
 
-    println!("Server version = {}", discovery.version);
+    println!("Server version = {}", discovery.server_version);
     println!("Available rooms = {:?}", discovery.available_rooms);
+    println!(
+        "Supported api versions = {:?}",
+        discovery.supported_api_versions
+    );
 
     if args.users {
         let users = room_ls(&CLIENT, &base_url, &room_name).await?;

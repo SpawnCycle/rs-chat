@@ -16,7 +16,7 @@ pub fn paths() -> Router {
     Router::new()
         .route("/", get(root))
         .route("/about", get(about))
-        .route("/room/{path}", get(room_ws))
-        .route("/room/{path}/ls", get(room_ls))
+        .route("/{version}/room/{path}", get(room_ws))
+        .route("/{version}/room/{path}/ls", get(room_ls))
         .with_state(state)
 }

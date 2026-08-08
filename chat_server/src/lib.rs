@@ -49,3 +49,9 @@ pub fn app() -> Router {
 async fn fallback(uri: Uri) -> (StatusCode, String) {
     (StatusCode::NOT_FOUND, format!("Couldn't find {uri}"))
 }
+
+pub fn version() -> semver::Version {
+    env!("CARGO_PKG_VERSION")
+        .parse()
+        .expect("cargo should give a valid semver")
+}

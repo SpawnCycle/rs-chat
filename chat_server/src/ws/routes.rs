@@ -5,7 +5,7 @@ use axum::{
     extract::{Path, Query, State, WebSocketUpgrade},
     response::Response,
 };
-use chat_lib::{discovery::Discovery, prelude::*};
+use chat_lib::{Discovery, Version, prelude::*};
 use names::{Generator, Name};
 use rustrict::{CensorStr, Context};
 use uuid::Uuid;
@@ -15,8 +15,16 @@ use crate::{
     app_error::AppError,
     consts::MAX_ROOM_LENGTH,
     limited_string::LimitedString,
+    version,
     ws::{handler::WsHandler, room::RoomComponents, room_args::RoomArgs},
 };
+
+pub fn is_version_supported(version: Version) -> bool {
+    match version {
+        Version::V1 => true,
+        Version::V2 | Version::V3 => false,
+    }
+}
 
 /// GET /
 pub async fn root() -> &'static str {
@@ -27,33 +35,42 @@ pub async fn root() -> &'static str {
 pub async fn about(State(AppState { components: rooms }): State<AppState>) -> Json<Discovery> {
     let rooms = rooms.lock().await.keys().cloned().collect::<Vec<_>>();
     Json(Discovery {
-        version: chat_lib::version().to_string(),
+        server_version: version(),
         available_rooms: rooms,
+        supported_api_versions: vec![Version::V1],
     })
 }
 
 /// GET /room/{path}/ls
 pub async fn room_ls(
-    path: Path<String>,
+    Path((version, path)): Path<(Version, LimitedString<{ MAX_ROOM_LENGTH }>)>,
     State(AppState { components: rooms }): State<AppState>,
-) -> Json<Vec<User>> {
+) -> Result<Json<Vec<User>>, AppError> {
+    if !is_version_supported(version) {
+        return Err(AppError::bad_request("Unsupported api version"));
+    }
+
     let rooms = rooms.lock().await;
     let Some(room_components) = rooms.get(path.as_str()) else {
-        return Json(Vec::new());
+        return Ok(Json(Vec::new()));
     };
     let room_components = room_components.lock().await;
     let room = room_components.room.lock().await;
 
-    Json(room.get_all_users())
+    Ok(Json(room.get_all_users()))
 }
 
 /// GET /room/{path}
 pub async fn room_ws(
     ws: WebSocketUpgrade,
-    path: Path<LimitedString<{ MAX_ROOM_LENGTH }>>,
+    Path((version, path)): Path<(Version, LimitedString<{ MAX_ROOM_LENGTH }>)>,
     State(state): State<AppState>,
     Query(args): Query<RoomArgs>,
 ) -> Result<Response, AppError> {
+    if !is_version_supported(version) {
+        return Err(AppError::bad_request("Unsupported api version"));
+    }
+
     let path = path.to_string();
     if path.is_inappropriate() {
         return Err(AppError::bad_request("Inappropriate room name"));

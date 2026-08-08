@@ -1,6 +1,6 @@
 use std::{sync::LazyLock, time::Duration};
 
-use chat_lib::text_resource;
+use chat_lib::{Version, text_resource};
 use ratatui::style::Style;
 use reqwest::Client;
 
@@ -32,6 +32,8 @@ pub static CLIENT: LazyLock<Client> = LazyLock::new(Client::new);
 
 pub const FOCUSED_CURSOR_STYLE: Style = Style::new().reversed().not_underlined();
 pub const UNFOCUSED_CURSOR_STYLE: Style = Style::new().not_reversed().underlined();
+
+pub const SUPPORTED_API_VERSIONS: &[Version] = &[Version::V1];
 
 #[cfg(test)]
 mod tests {
