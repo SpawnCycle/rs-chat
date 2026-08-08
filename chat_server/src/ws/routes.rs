@@ -41,7 +41,7 @@ pub async fn about(State(AppState { components: rooms }): State<AppState>) -> Js
     })
 }
 
-/// GET /room/{path}/ls
+/// GET /{version}/room/{path}/ls
 pub async fn room_ls(
     Path((version, path)): Path<(Version, LimitedString<{ MAX_ROOM_LENGTH }>)>,
     State(AppState { components: rooms }): State<AppState>,
@@ -60,7 +60,7 @@ pub async fn room_ls(
     Ok(Json(room.get_all_users()))
 }
 
-/// GET /room/{path}
+/// GET /{version}/room/{path}
 pub async fn room_ws(
     ws: WebSocketUpgrade,
     Path((version, path)): Path<(Version, LimitedString<{ MAX_ROOM_LENGTH }>)>,
