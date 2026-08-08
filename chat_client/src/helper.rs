@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::anyhow;
+use chat_lib::Version;
 use ratatui::widgets::{Block, Borders};
 use ratatui_textarea::TextArea;
 use tokio::sync::mpsc::channel;
@@ -101,6 +102,7 @@ pub fn apply_cursor_style(
 pub async fn connect_room(
     config: &AppConfig,
     base_url: &Url,
+    version: Version,
     room_name: &str,
     name: Option<String>,
 ) -> anyhow::Result<(Room, tokio::task::JoinHandle<()>)> {
@@ -108,13 +110,14 @@ pub async fn connect_room(
 
     log::debug!("{base_url} - {discovery:?}");
 
-    Ok(connect_room_ws(config, base_url, room_name, name))
+    Ok(connect_room_ws(config, base_url, version, room_name, name))
 }
 
 /// Connects to a room without checking if `base_url` houses a valid chat server
 pub fn connect_room_ws(
     config: &AppConfig,
     base_url: &Url,
+    version: Version,
     room_name: &str,
     name: Option<String>,
 ) -> (Room, tokio::task::JoinHandle<()>) {
@@ -125,9 +128,17 @@ pub fn connect_room_ws(
     let room_string = room_name.to_string();
     let base_url = base_url.clone();
     let ws = tokio::spawn(async move {
-        let handler = WsHandler::new(e_tx, a_rx, config.web, room_string.clone(), base_url, name)
-            .await
-            .inspect_err(|err| log::error!("Fatal error during websocket connection: {err}"));
+        let handler = WsHandler::new(
+            e_tx,
+            a_rx,
+            config.web,
+            room_string.clone(),
+            base_url,
+            version,
+            name,
+        )
+        .await
+        .inspect_err(|err| log::error!("Fatal error during websocket connection: {err}"));
         log::debug!("Websocket handler for {room_string} started");
         let Ok(mut handler) = handler else {
             return; // Ok to return because handler is not initialized

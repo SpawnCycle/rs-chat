@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Instant};
 
-use chat_lib::Discovery;
+use chat_lib::{Discovery, Version};
 use tokio::sync::{
     broadcast,
     mpsc::{Receiver, Sender, channel},
@@ -117,7 +117,7 @@ impl AppContext {
         room_name: &str,
         name: Option<String>,
     ) -> (Room, tokio::task::JoinHandle<()>) {
-        let (mut room, ws) = connect_room_ws(&self.config, base, room_name, name);
+        let (mut room, ws) = connect_room_ws(&self.config, base, Version::V1, room_name, name);
 
         room.action(WsAction::RequestSelf);
         room.action(WsAction::RequestAll);

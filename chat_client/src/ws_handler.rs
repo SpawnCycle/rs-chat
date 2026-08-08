@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::{Context, anyhow};
-use chat_lib::{prelude::*, ws_connection::WsConnection};
+use chat_lib::{Version, prelude::*, ws_connection::WsConnection};
 use futures::{SinkExt, StreamExt};
 use tokio::sync::mpsc::Sender;
 use tokio_tungstenite::{connect_async, tungstenite};
@@ -72,6 +72,7 @@ impl WsHandler {
         config: WebConfig,
         room: String,
         mut url: Url,
+        version: Version,
         initial_name: Option<String>,
     ) -> anyhow::Result<Self> {
         // TODO: Better error reporting/handling instread of just using anyhow
@@ -82,7 +83,7 @@ impl WsHandler {
         }
 
         let mut url = url
-            .join(&format!("room/{room}"))
+            .join(&format!("{version}/room/{room}"))
             .context("Couldn't parse url string")?;
 
         if let Some(name) = initial_name {
