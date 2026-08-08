@@ -50,6 +50,10 @@ async fn fallback(uri: Uri) -> (StatusCode, String) {
     (StatusCode::NOT_FOUND, format!("Couldn't find {uri}"))
 }
 
+/// # Panics
+///
+/// This function panics if cargo stores a version that isn't a semver
+#[must_use]
 pub fn version() -> semver::Version {
     env!("CARGO_PKG_VERSION")
         .parse()
