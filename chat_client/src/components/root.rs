@@ -268,11 +268,11 @@ impl Root<'_> {
 
         let current_room = ctx.current_room_name();
         let room_area = y_areas[1];
-        let rooms = ctx
+        let mut rooms = ctx
             .rooms
             .iter()
             .map(|(loc, r)| {
-                let s = loc.room_name.as_str();
+                let name = loc.room_name.to_string();
                 let style = match r.get_state() {
                     RoomState::Active => Style::new(),
                     RoomState::Quit => Style::new().crossed_out(),
@@ -290,7 +290,14 @@ impl Root<'_> {
                 let domain = loc_domain(loc);
                 let domain = format!("({domain})");
 
-                Line::from_iter([Span::from(s), " ".to_span(), domain.green()]).style(style)
+                (name, domain, style)
+            })
+            .collect::<Vec<_>>();
+        rooms.sort_by_key(|(name, _, _)| name.clone());
+        let rooms = rooms
+            .into_iter()
+            .map(|(name, domain, style)| {
+                Line::from_iter([Span::from(name), " ".to_span(), domain.green()]).style(style)
             })
             .collect::<Text>();
         let rooms = Paragraph::new(rooms).block(
