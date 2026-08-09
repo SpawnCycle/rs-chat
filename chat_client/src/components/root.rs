@@ -272,7 +272,7 @@ impl Root<'_> {
             .rooms
             .iter()
             .map(|(loc, r)| {
-                let name = loc.room_name.to_string();
+                let name = loc.room_name.clone();
                 let style = match r.get_state() {
                     RoomState::Active => Style::new(),
                     RoomState::Quit => Style::new().crossed_out(),
