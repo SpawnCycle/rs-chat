@@ -124,7 +124,7 @@ impl App {
     pub async fn quit(mut self) -> anyhow::Result<()> {
         self.context.quit_all_rooms();
 
-        self.context.update_rooms();
+        // self.context.update_rooms();
 
         self.screen_stack.iter_mut().rev().for_each(|s| {
             for c in s.iter_mut() {

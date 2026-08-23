@@ -5,7 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use chat_lib::types::{Message, User};
+use chat_lib::{Message, User};
 use ringbuffer::{AllocRingBuffer, RingBuffer};
 use thiserror::Error;
 use tokio::{

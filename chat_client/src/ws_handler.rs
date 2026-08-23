@@ -141,6 +141,19 @@ impl WsHandler {
         let _ = self.tx.send(WsEvent::Quit).await;
         let _ = self.stream.flush().await;
         let _ = self.stream.close().await;
+
+        // a close is only valid if both of the parties sent a close frame,
+        self.await_close_frame().await;
+    }
+
+    async fn await_close_frame(&mut self) {
+        while let Some(msg) = self.stream.next().await {
+            // we need to await a close frame (or an error),
+            // so the close can be finalize properly
+            if matches!(msg, Ok(tungstenite::Message::Close(_)) | Err(_)) {
+                break;
+            }
+        }
     }
 
     async fn handle_stream(&mut self) -> anyhow::Result<bool> {
