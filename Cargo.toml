@@ -28,13 +28,13 @@ axum = { version = "0.8.9", features = ["ws", "json"] }
 semver = { version = "1.0.28", features = ["serde"] }
 serde = { version = "1.0.229", features = ["derive"] }
 strum = { version = "0.28.0", features = ["derive"] }
-tokio = { version = "1.53.0", features = ["full"] }
-uuid = { version = "1.24.0", features = ["v4", "serde"] }
+tokio = { version = "1.53.1", features = ["full"] }
+uuid = { version = "1.25.0", features = ["v4", "serde"] }
 
 anyhow = "1.0.104"
-futures = "0.3.33"
-log = "0.4.33"
-thiserror = "2.0.19"
+futures = "0.3.34"
+log = "0.4.34"
+thiserror = "2.0.20"
 tokio-tungstenite = "0.30.0"
 tungstenite = "0.30.0"
 

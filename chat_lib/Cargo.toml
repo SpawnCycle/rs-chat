@@ -32,4 +32,4 @@ strum = { workspace = true }
 tokio = { workspace = true }
 uuid = { workspace = true }
 
-serde_json = "1.0.150"
+serde_json = "1.0.151"
