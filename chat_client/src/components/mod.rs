@@ -1,4 +1,3 @@
-mod context;
 mod log_view;
 mod notification_view;
 mod popup;
@@ -16,7 +15,8 @@ use crossterm::event::Event;
 use ratatui::{Frame, layout::Rect};
 use url::Url;
 
-pub use context::AppContext;
+use crate::AppContext;
+
 pub use log_view::LogView;
 pub use notification_view::NotificationView;
 pub use room_join::RoomJoinModal;

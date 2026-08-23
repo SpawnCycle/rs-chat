@@ -2,6 +2,7 @@ pub mod app;
 pub mod components;
 pub mod config;
 pub mod consts;
+pub mod context;
 pub mod event;
 
 mod actions;
@@ -23,6 +24,7 @@ use tokio::{sync::mpsc::Sender, task::JoinHandle};
 use crate::consts::{POLL_DURATION, TICK_DURATION};
 
 pub use crate::actions::actions;
+pub use crate::context::AppContext;
 
 #[derive(Debug)]
 pub enum AppEvent {

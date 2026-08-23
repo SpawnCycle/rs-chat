@@ -9,7 +9,7 @@ use ratatui::{
 };
 
 use crate::{
-    components::AppContext,
+    AppContext,
     event::{EventType, RoomEvent, UserLocator},
 };
 

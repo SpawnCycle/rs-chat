@@ -4,8 +4,8 @@ use crossterm::event::Event;
 use ratatui::Frame;
 
 use crate::{
-    AppError, AppEvent,
-    components::{AppAction, AppContext, BoxedComponent, Component, EventResult, Root, Screen},
+    AppContext, AppError, AppEvent,
+    components::{AppAction, BoxedComponent, Component, EventResult, Root, Screen},
     config::AppConfig,
 };
 
