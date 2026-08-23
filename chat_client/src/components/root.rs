@@ -43,15 +43,82 @@ fn layout() -> Layout {
 }
 
 fn help_popup() -> TextPopup<'static> {
-    TextPopup::new(TUI_HELP_TEXT, PopupOptions::new().no_pass(), |ev| {
+    TextPopup::new(
+        TUI_HELP_TEXT,
+        PopupOptions::new().no_pass().add_exit(|ev| {
+            matches!(
+                ev.clone().into(),
+                Input {
+                    key: Key::Char('h'),
+                    ctrl: true,
+                    ..
+                }
+            )
+        }),
+    )
+}
+
+fn room_join_options() -> PopupOptions {
+    PopupOptions::new()
+        .set_vsize(Constraint::Length(8))
+        .set_name("Join a room")
+        .add_exit(|ev| {
+            matches!(
+                ev.clone().into(),
+                Input {
+                    key: Key::Char('r'),
+                    ctrl: true,
+                    ..
+                }
+            )
+        })
+}
+
+fn room_switch_options() -> PopupOptions {
+    PopupOptions::new().set_name("Switch rooms").add_exit(|ev| {
         matches!(
             ev.clone().into(),
             Input {
-                key: Key::Char('h'),
+                key: Key::Char('s'),
                 ctrl: true,
                 ..
             }
         )
+    })
+}
+
+fn notifications_options() -> PopupOptions {
+    PopupOptions::new()
+        .set_name("Notifications")
+        .add_exit(|ev| {
+            matches!(
+                ev.clone().into(),
+                Input {
+                    key: Key::Char('t'),
+                    ctrl: true,
+                    ..
+                }
+            )
+        })
+}
+
+fn people_popup(ctx: &AppContext) -> Option<Popup> {
+    ctx.current_room_with_loc().map(|(loc, r)| {
+        let name = r.room_name();
+        let domain = loc_domain(loc);
+        let opts = PopupOptions::new()
+            .set_name(format!("People in {name} ({domain})"))
+            .add_exit(|ev| {
+                matches!(
+                    ev.clone().into(),
+                    Input {
+                        key: Key::Char('f'),
+                        ctrl: true,
+                        ..
+                    }
+                )
+            });
+        Popup::new(UserView::new().boxed(), opts)
     })
 }
 
@@ -165,9 +232,7 @@ impl Root<'_> {
                 ..
             } => {
                 let modal = RoomJoinModal::new(ctx.config.web.url.clone());
-                let opts = PopupOptions::new()
-                    .set_vsize(Constraint::Length(8))
-                    .set_name("Join a room");
+                let opts = room_join_options();
                 return EventResult::push_component(Popup::new(modal.boxed(), opts));
             }
             Input {
@@ -176,7 +241,7 @@ impl Root<'_> {
                 ..
             } => {
                 let modal = RoomSwitchModal::new(ctx.config.web.url.clone());
-                let opts = PopupOptions::new().set_name("Switch rooms");
+                let opts = room_switch_options();
                 return EventResult::push_component(Popup::new(modal.boxed(), opts));
             }
             Input {
@@ -192,7 +257,7 @@ impl Root<'_> {
                 ctrl: true,
                 ..
             } => {
-                let opts = PopupOptions::new().set_name("Notifications");
+                let opts = notifications_options();
                 return EventResult::push_component(Popup::new(
                     NotificationView::new().boxed(),
                     opts,
@@ -203,11 +268,8 @@ impl Root<'_> {
                 ctrl: true,
                 ..
             } => {
-                if let Some((loc, r)) = ctx.current_room_with_loc() {
-                    let name = r.room_name();
-                    let domain = loc_domain(loc);
-                    let opts = PopupOptions::new().set_name(format!("People in {name} ({domain})"));
-                    return EventResult::push_component(Popup::new(UserView::new().boxed(), opts));
+                if let Some(popup) = people_popup(ctx) {
+                    return EventResult::push_component(popup);
                 }
             }
             input => {

@@ -11,7 +11,6 @@ use crate::components::{AppContext, Component, EventResult, popup_options::Popup
 
 pub struct TextPopup<'a> {
     content: Text<'a>,
-    extra_toggle: Box<dyn Fn(&Event) -> bool>,
     /// scroll compared to the top
     scroll: u16,
     options: PopupOptions,
@@ -29,15 +28,10 @@ impl Debug for TextPopup<'_> {
 }
 
 impl<'a> TextPopup<'a> {
-    pub fn new(
-        content: impl Into<Text<'a>>,
-        options: PopupOptions,
-        extra_toggle: impl Fn(&Event) -> bool + 'static,
-    ) -> Self {
+    pub fn new(content: impl Into<Text<'a>>, options: PopupOptions) -> Self {
         Self {
             scroll: 0,
             content: content.into(),
-            extra_toggle: Box::new(extra_toggle),
             options,
         }
     }
@@ -70,8 +64,10 @@ impl Component for TextPopup<'_> {
                 self.scroll = self.scroll.saturating_sub(1);
             }
             _ => {
-                if (self.extra_toggle)(event) {
-                    return EventResult::pop_component();
+                for toggle in &self.options.exit_binds {
+                    if (toggle)(event) {
+                        return EventResult::pop_component();
+                    }
                 }
 
                 return if self.options.pass_input {

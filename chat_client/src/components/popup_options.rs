@@ -1,8 +1,10 @@
+use crossterm::event::Event;
 use ratatui::layout::Constraint;
 
-#[derive(Debug, Clone)]
+pub type ExitToggleFn = Box<dyn Fn(&Event) -> bool>;
+
 pub struct PopupOptions {
-    // sets the string
+    /// sets the string
     pub name: Option<String>,
     /// toggles if the input should be passed through
     pub pass_input: bool,
@@ -11,6 +13,22 @@ pub struct PopupOptions {
     /// sets the size of the popup
     pub hsize: Constraint,
     pub vsize: Constraint,
+
+    /// binds with which the popup can be exited
+    pub exit_binds: Vec<ExitToggleFn>,
+}
+
+impl std::fmt::Debug for PopupOptions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PopupOptions")
+            .field("name", &self.name)
+            .field("pass_input", &self.pass_input)
+            .field("allow_quit", &self.allow_quit)
+            .field("hsize", &self.hsize)
+            .field("vsize", &self.vsize)
+            .field("exit_binds", &"<ExtraToggles>")
+            .finish()
+    }
 }
 
 impl Default for PopupOptions {
@@ -29,6 +47,7 @@ impl PopupOptions {
             allow_quit: true,
             hsize: Constraint::Percentage(75),
             vsize: Constraint::Percentage(75),
+            exit_binds: Vec::new(),
         }
     }
 
@@ -92,5 +111,19 @@ impl PopupOptions {
             allow_quit: true,
             ..self
         }
+    }
+
+    #[must_use]
+    pub fn empty_exit(mut self) -> Self {
+        self.exit_binds.clear();
+
+        self
+    }
+
+    #[must_use]
+    pub fn add_exit(mut self, bind: impl Fn(&Event) -> bool + 'static) -> Self {
+        self.exit_binds.push(Box::new(bind));
+
+        self
     }
 }

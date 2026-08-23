@@ -39,6 +39,11 @@ impl Component for Popup {
         if let Input { key: Key::Esc, .. } = event.clone().into() {
             return EventResult::pop_component();
         }
+        for toggle in &self.options.exit_binds {
+            if (toggle)(event) {
+                return EventResult::pop_component();
+            }
+        }
 
         self.inner.handle_event(event, ctx)
     }
