@@ -105,7 +105,7 @@ pub async fn connect_room(
     version: Version,
     room_name: &str,
     name: Option<String>,
-) -> anyhow::Result<(Room, tokio::task::JoinHandle<()>)> {
+) -> anyhow::Result<Room> {
     let discovery = room_discovery(&CLIENT, base_url).await?;
 
     log::debug!("{base_url} - {discovery:?}");
@@ -120,7 +120,7 @@ pub fn connect_room_ws(
     version: Version,
     room_name: &str,
     name: Option<String>,
-) -> (Room, tokio::task::JoinHandle<()>) {
+) -> Room {
     let (e_tx, e_rx) = channel::<WsEvent>(CHANNEL_BUFFER_SIZE);
     let (a_tx, a_rx) = sync_channel::<WsAction>(CHANNEL_BUFFER_SIZE);
 
@@ -139,7 +139,9 @@ pub fn connect_room_ws(
         )
         .await
         .inspect_err(|err| log::error!("Fatal error during websocket connection: {err}"));
+
         log::debug!("Websocket handler for {room_string} started");
+
         let Ok(mut handler) = handler else {
             return; // Ok to return because handler is not initialized
         };
@@ -151,7 +153,7 @@ pub fn connect_room_ws(
         log::debug!("Websocket handler for {room_string} ended");
     });
 
-    (Room::new(config.chat, room_name, a_tx, e_rx), ws)
+    Room::new(config.chat, room_name, a_tx, e_rx, ws)
 }
 
 /// returns if the given event satisfies a given action (self id is required for actions related to self)

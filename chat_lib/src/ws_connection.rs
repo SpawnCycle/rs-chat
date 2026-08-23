@@ -17,9 +17,6 @@ use axum::extract::ws::{CloseFrame as AxumFrame, Message as AxumMessage, WebSock
 #[cfg(feature = "server")]
 use tokio_tungstenite::tungstenite::protocol::{CloseFrame, frame::coding::CloseCode};
 
-#[cfg(feature = "client")]
-pub use tokio_tungstenite::tungstenite::Error;
-
 pub use tokio_tungstenite::tungstenite::Message;
 
 #[derive(Debug)]
@@ -89,7 +86,7 @@ impl From<MockWebSocket> for WsConnection {
 impl WsConnection {
     /// # Errors
     ///
-    /// This function errors if the underlying close implementation fails
+    /// This function errors if the is a problem closing the data stream
     pub async fn close(&mut self) -> Result<(), anyhow::Error> {
         match self {
             #[cfg(feature = "client")]

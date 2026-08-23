@@ -1,9 +1,17 @@
-use std::{collections::HashMap, time::Instant};
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 use chat_lib::{Discovery, Version};
-use tokio::sync::{
-    broadcast,
-    mpsc::{Receiver, Sender, channel},
+use futures::FutureExt;
+use tokio::{
+    sync::{
+        broadcast,
+        mpsc::{Receiver, Sender, channel},
+    },
+    task::JoinError,
+    time::timeout,
 };
 use url::Url;
 
@@ -13,7 +21,7 @@ use crate::{
     helper::{FetchState, RoomLocation, connect_room_ws},
     notif_error, notif_info,
     notifications::{self, Notification},
-    room::Room,
+    room::{Room, TimedJoinError},
     task::{AppTaskPayload, AppTaskResult, start_discovery},
     ws_handler::WsAction,
 };
@@ -82,6 +90,34 @@ impl AppContext {
         self.retain_active_rooms();
     }
 
+    /// # Errors
+    ///
+    /// This function errors if any of the rooms error when joined
+    pub async fn await_rooms(self) -> Result<(), JoinError> {
+        log::info!("awaiting all of the rooms' join handles");
+
+        let futures = self.rooms.into_values().map(|r| r.join_task().boxed());
+
+        let res = futures::future::join_all(futures).await;
+
+        res.into_iter().collect::<Result<Vec<_>, _>>()?;
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        log::info!("successfully joined all of the rooms");
+
+        Ok(())
+    }
+
+    /// # Errors
+    ///
+    /// This function errors if any of the rooms error when joined or if the passed in duration elapses
+    pub async fn await_rooms_timeout(self, duration: Duration) -> Result<(), TimedJoinError> {
+        timeout(duration, self.await_rooms()).await??;
+
+        Ok(())
+    }
+
     #[allow(clippy::needless_pass_by_value)]
     pub fn join_room(&mut self, base: Url, room_name: impl ToString) {
         self.join_queue.push(RoomLocation {
@@ -96,7 +132,7 @@ impl AppContext {
             return;
         }
 
-        let (room, _) = self.new_room(
+        let room = self.new_room(
             &loc.url,
             &loc.room_name,
             self.config.web.defult_name.clone(),
@@ -111,18 +147,13 @@ impl AppContext {
         }
     }
 
-    fn new_room(
-        &self,
-        base: &Url,
-        room_name: &str,
-        name: Option<String>,
-    ) -> (Room, tokio::task::JoinHandle<()>) {
-        let (mut room, ws) = connect_room_ws(&self.config, base, Version::V1, room_name, name);
+    fn new_room(&self, base: &Url, room_name: &str, name: Option<String>) -> Room {
+        let mut room = connect_room_ws(&self.config, base, Version::V1, room_name, name);
 
         room.action(WsAction::RequestSelf);
         room.action(WsAction::RequestAll);
 
-        (room, ws)
+        room
     }
 
     pub fn discover(&mut self, url: Url) {

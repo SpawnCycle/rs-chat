@@ -59,8 +59,6 @@ async fn app_entry_point(config: AppConfig, action: Option<ActionType>) -> anyho
 
     ratatui::restore();
 
-    app.quit();
-
     #[allow(
         clippy::print_stderr,
         reason = "we're reporing an error with the terminal in a restored state"
@@ -80,6 +78,8 @@ async fn app_entry_point(config: AppConfig, action: Option<ActionType>) -> anyho
     } else {
         eprintln!("Why did we exit?");
     }
+
+    app.quit().await?;
 
     Ok(())
 }

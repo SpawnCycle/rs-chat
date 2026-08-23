@@ -7,7 +7,12 @@ use std::{
 
 use chat_lib::types::{Message, User};
 use ringbuffer::{AllocRingBuffer, RingBuffer};
-use tokio::sync::mpsc::Receiver;
+use thiserror::Error;
+use tokio::{
+    sync::mpsc::Receiver,
+    task::{JoinError, JoinHandle},
+    time::{error::Elapsed, timeout},
+};
 use uuid::Uuid;
 
 use crate::{
@@ -49,6 +54,8 @@ pub struct Room {
     active_requests: HashMap<WsAction, Instant>,
     state: RoomState,
 
+    handle: JoinHandle<()>,
+
     #[allow(unused)]
     config: ChatConfig,
 }
@@ -61,6 +68,14 @@ pub enum RoomState {
     Error(String),
 }
 
+#[derive(Debug, Error)]
+pub enum TimedJoinError {
+    #[error("{0}")]
+    Timeout(#[from] Elapsed),
+    #[error("{0}")]
+    Join(#[from] JoinError),
+}
+
 impl Room {
     #[must_use]
     pub fn new(
@@ -68,10 +83,12 @@ impl Room {
         name: &str,
         tx: SyncSender<WsAction>,
         rx: Receiver<WsEvent>,
+        handle: JoinHandle<()>,
     ) -> Self {
         Self {
             tx,
             rx,
+            handle,
             events: AllocRingBuffer::new(config.buffer_size),
             users: HashMap::new(),
             self_id: None,
@@ -82,8 +99,21 @@ impl Room {
             state: RoomState::Pending,
             timeout_until: None,
             active_users: HashSet::new(),
+
+            // this has to get cloned if it's not at the end
             config,
         }
+    }
+
+    pub async fn join_task(self) -> Result<(), JoinError> {
+        log::debug!("room({}): awaiting websocket task", self.room_name());
+        self.handle.await
+    }
+
+    pub async fn join_task_timeout(self, duration: Duration) -> Result<(), TimedJoinError> {
+        timeout(duration, self.join_task()).await??;
+
+        Ok(())
     }
 
     pub fn get_state(&self) -> RoomState {

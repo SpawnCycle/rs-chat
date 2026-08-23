@@ -130,8 +130,7 @@ impl WsHandler {
                 let res = res.inspect_err(|err| log::error!("{err}")).unwrap_or(true);
                 should_quit = should_quit || res;
             }
-            () = tokio::time::sleep(TICK_DURATION / 2) => {
-            }
+            () = tokio::time::sleep(TICK_DURATION / 2) => {}
         };
 
         should_quit

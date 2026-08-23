@@ -1,5 +1,4 @@
 use chat_lib::Version;
-use tokio::time::timeout;
 
 use crate::{
     config::{AppConfig, EchoArgs},
@@ -8,7 +7,7 @@ use crate::{
 };
 
 pub async fn echo_action(config: AppConfig, args: EchoArgs) -> anyhow::Result<()> {
-    let (mut room, ws) = connect_room(
+    let mut room = connect_room(
         &config,
         &config.web.url,
         Version::V1,
@@ -23,7 +22,7 @@ pub async fn echo_action(config: AppConfig, args: EchoArgs) -> anyhow::Result<()
     room.send_text(&text);
     room.quit();
 
-    let _ = timeout(WS_TIMEOUT_DURATION, ws).await;
+    room.join_task_timeout(WS_TIMEOUT_DURATION).await?;
 
     Ok(())
 }

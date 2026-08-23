@@ -7,6 +7,7 @@ use crate::{
     AppContext, AppError, AppEvent,
     components::{AppAction, BoxedComponent, Component, EventResult, Root, Screen},
     config::AppConfig,
+    consts::WS_TIMEOUT_DURATION,
 };
 
 pub struct App {
@@ -117,16 +118,25 @@ impl App {
         }
     }
 
-    pub fn quit(&mut self) {
-        let context = &mut self.context;
+    /// # Errors
+    ///
+    /// This function errors if any of the rooms error when joined or if `WS_TIMEOUT_DURATION` elapses
+    pub async fn quit(mut self) -> anyhow::Result<()> {
+        self.context.quit_all_rooms();
 
-        context.quit_all_rooms();
+        self.context.update_rooms();
 
         self.screen_stack.iter_mut().rev().for_each(|s| {
             for c in s.iter_mut() {
-                c.before_quit(context);
+                c.before_quit(&mut self.context);
             }
         });
+
+        self.context
+            .await_rooms_timeout(WS_TIMEOUT_DURATION)
+            .await?;
+
+        Ok(())
     }
 
     #[must_use]
@@ -161,7 +171,7 @@ impl App {
             AppAction::JoinRoom(url, name) => {
                 self.context.join_room(url, &name);
             }
-            AppAction::Quit => self.exit_reason = Some(ExitReason::default()),
+            AppAction::Quit => self.user_quit(),
         }
     }
 
@@ -200,7 +210,7 @@ impl App {
                 }
             }
         } else {
-            self.exit_reason = Some(ExitReason::default());
+            self.user_quit();
         }
     }
 
@@ -214,5 +224,9 @@ impl App {
         self.screen_stack
             .last_mut()
             .expect("The screen stack should have at least 1 screen")
+    }
+
+    fn user_quit(&mut self) {
+        self.exit_reason = Some(ExitReason::UserAction);
     }
 }

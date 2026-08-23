@@ -99,9 +99,7 @@ where
     async fn handle_stream(&mut self, res: Result<Message, anyhow::Error>) -> WsResult<bool> {
         match res {
             Err(err) => {
-                if self.stream_open {
-                    self.close_socket().await?;
-                }
+                self.close_socket().await?;
                 Err(err)
             }
             Ok(msg) => {
@@ -277,8 +275,11 @@ where
     }
 
     pub async fn close_socket(&mut self) -> WsResult {
-        self.exit_room().await;
-        self.stream.send(Message::Close(None)).await?;
+        if self.stream_open {
+            self.exit_room().await;
+            // Would check the error type if axum returned an actual error type
+            let _ = self.stream.send(Message::Close(None)).await;
+        }
 
         Ok(())
     }
