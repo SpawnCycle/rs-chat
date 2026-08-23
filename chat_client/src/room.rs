@@ -156,7 +156,7 @@ impl Room {
     }
 
     pub fn quit(&mut self) {
-        log::info!("Quitting room {}", self.name);
+        log::info!("room({}): Quitting", self.room_name());
         self.state = RoomState::Quit;
         self.send_action(WsAction::Quit);
     }
@@ -331,7 +331,7 @@ impl Room {
         let buffer = action_should_buffer(&action);
 
         if !buffer || !self.active_requests.contains_key(&action) {
-            log::debug!("Sending action {action:?}");
+            log::debug!("room({}): Sending action {action:?}", self.room_name());
             let _ = self.tx.send(action.clone());
 
             if buffer {

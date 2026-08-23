@@ -45,7 +45,6 @@ impl From<anyhow::Error> for ExitReason {
     }
 }
 
-#[allow(unused)]
 impl App {
     #[must_use]
     pub fn new(config: AppConfig) -> Self {
@@ -71,7 +70,6 @@ impl App {
         }
     }
 
-    /// This function may be async if the event triggers an action that is async
     pub fn handle_event(&mut self, event: AppEvent) {
         match event {
             AppEvent::Tick => {
@@ -113,9 +111,7 @@ impl App {
             let res = component.handle_event(event, context);
 
             if let EventResult::Consumed(res) = res {
-                for action in res {
-                    self.process_action(action);
-                }
+                self.process_actions(res);
                 break;
             }
         }
@@ -206,10 +202,6 @@ impl App {
         } else {
             self.exit_reason = Some(ExitReason::default());
         }
-    }
-
-    fn add_component(&mut self, component: impl Component + 'static) {
-        self.current_screen_mut().push(Box::new(component));
     }
 
     fn current_screen(&self) -> &Vec<BoxedComponent> {

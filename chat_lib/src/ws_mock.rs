@@ -24,7 +24,6 @@ pub enum MockStrategy {
     Store,
 }
 
-#[allow(unused)]
 impl MockWebSocket {
     #[must_use]
     pub fn get_out(&self) -> &VecDeque<Message> {
@@ -78,7 +77,6 @@ impl MockWebSocket {
 
     fn flush_out_messages(&mut self) {
         if self.strategy == MockStrategy::Proxy {
-            let mut send_failed = false;
             // send the messages and remove those which succeeded
             self.out_messages.retain(|msg| {
                 let res = self.tx.try_send(msg.clone());
@@ -168,7 +166,6 @@ mod tests {
     use futures::StreamExt;
     use tokio::sync::mpsc::channel;
 
-    #[allow(unused)]
     fn print_messages(mock: &MockWebSocket) {
         eprintln!("IN = {:?}", mock.get_in());
         eprintln!("OUT = {:?}", mock.get_out());

@@ -1,15 +1,10 @@
-#![allow(unused)]
+use std::{sync::LazyLock, time::Instant};
 
-use std::{collections::VecDeque, sync::LazyLock, time::Instant};
-
-use ratatui::{
-    style::Stylize,
-    text::{Line, Span},
-};
+use ratatui::{style::Stylize, text::Span};
 use strum::Display;
-use tokio::sync::{Mutex, broadcast};
+use tokio::sync::broadcast;
 
-use crate::consts::{CHANNEL_BUFFER_SIZE, NOTIFICATION_POLLER_TIMEOUT};
+use crate::consts::CHANNEL_BUFFER_SIZE;
 
 // In a way this is just stripped down `LogLevel`
 #[derive(Debug, Clone, Display)]
@@ -51,7 +46,7 @@ fn add_notification(typ: NotificationType, data: impl ToString) {
     let data = data.to_string();
     tokio::spawn(async {
         let notif = Notification::new(typ, data);
-        NOTIFICATION_CHANNEL.send(notif);
+        let _ = NOTIFICATION_CHANNEL.send(notif);
     });
 }
 
