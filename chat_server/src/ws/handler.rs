@@ -269,8 +269,8 @@ where
         let mut room = self.room.lock().await;
         if let Some(user) = room.get_user(&self.id) {
             let _ = self.tx.send(ServerMessage::UserLeft(user.clone()));
+            room.remove_user(&self.id);
         }
-        room.remove_user(&self.id);
         self.in_room = false;
     }
 

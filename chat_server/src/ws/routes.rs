@@ -112,7 +112,7 @@ pub async fn room_ws(
             let should_quit = match loop_ctx.ws_step().await {
                 Ok(quit) => quit,
                 Err(err) => {
-                    log::warn!("Couldn't send a message: {err}");
+                    log::error!("Couldn't send a message: {err}");
                     let _ = loop_ctx.close_socket().await;
                     true
                 }
