@@ -5,7 +5,7 @@ use url::Url;
 
 use super::args::Cli;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     pub web: WebConfig,
     pub chat: ChatConfig,
@@ -23,18 +23,20 @@ pub struct ChatConfig {
     pub buffer_size: usize,
 }
 
-impl Default for AppConfig {
+impl Default for WebConfig {
     fn default() -> Self {
         Self {
-            web: WebConfig {
-                // TODO: change it to the url of the pi once this is hosted
-                url: Url::from_str("http://127.0.0.1:8000/")
-                    .expect("Default Connection url to be correct"),
-                default_room: String::from("default"),
-                defult_name: None,
-            },
-            chat: ChatConfig { buffer_size: 5_000 },
+            url: Url::from_str("http://127.0.0.1:8000/")
+                .expect("Default Connection url to be correct"),
+            default_room: String::from("default"),
+            defult_name: None,
         }
+    }
+}
+
+impl Default for ChatConfig {
+    fn default() -> Self {
+        Self { buffer_size: 5_000 }
     }
 }
 

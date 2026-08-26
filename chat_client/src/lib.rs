@@ -15,6 +15,9 @@ mod room;
 mod task;
 mod ws_handler;
 
+#[cfg(test)]
+mod testing;
+
 use std::io;
 
 use crossterm::event::Event;

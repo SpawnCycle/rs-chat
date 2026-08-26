@@ -66,7 +66,7 @@ impl WsHandler {
     /// # Panics
     ///
     /// This function panics if any of the default values are incorrect
-    pub async fn new(
+    pub async fn connect(
         tx: Sender<WsEvent>,
         rx: Receiver<WsAction>,
         config: WebConfig,
@@ -102,12 +102,21 @@ impl WsHandler {
         }
         let stream = stream?;
 
-        Ok(Self {
+        Ok(Self::new(config, stream, tx, rx))
+    }
+
+    const fn new(
+        config: WebConfig,
+        stream: WsConnection,
+        tx: Sender<WsEvent>,
+        rx: Receiver<WsAction>,
+    ) -> Self {
+        Self {
             config,
             stream,
             tx,
             rx,
-        })
+        }
     }
 
     async fn connect_websocket(cfg: &Url) -> anyhow::Result<WsConnection> {
@@ -139,8 +148,8 @@ impl WsHandler {
     async fn send_close(&mut self) -> anyhow::Result<()> {
         log::info!("Closing Ws stream");
         let _ = self.tx.send(WsEvent::Quit).await;
-        self.stream.flush().await?;
         self.stream.close().await?;
+        self.stream.flush().await?;
 
         Ok(())
     }
@@ -333,5 +342,47 @@ impl WsHandler {
 
     async fn send_event(&mut self, event: WsEvent) {
         let _ = self.tx.send(event).await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use chat_lib::{ws_connection::Message, ws_mock::MockWebSocket};
+
+    use crate::testing::{HandlerChannels, rx_collect_available};
+
+    #[tokio::test]
+    async fn handler_exits() -> anyhow::Result<()> {
+        let HandlerChannels {
+            e_tx,
+            mut e_rx,
+            a_rx,
+            in_tx,
+            in_rx,
+            out_tx,
+            mut out_rx,
+            ..
+        } = HandlerChannels::new();
+
+        let conn = WsConnection::Mock(Box::new(MockWebSocket::new_proxy(out_tx, in_rx)));
+        let mut ws = WsHandler::new(WebConfig::default(), conn, e_tx, a_rx);
+
+        in_tx.send(tungstenite::Message::Close(None)).await?;
+
+        for _ in 0..5 {
+            if !ws.step().await {
+                break;
+            }
+        }
+
+        let out_vec = rx_collect_available(&mut out_rx);
+        let ev_vec = rx_collect_available(&mut e_rx);
+
+        assert!(out_vec.contains(&Message::Close(None)));
+        assert!(ev_vec.contains(&WsEvent::Quit));
+
+        Ok(())
     }
 }

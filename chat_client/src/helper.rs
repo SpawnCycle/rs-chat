@@ -128,7 +128,7 @@ pub fn connect_room_ws(
     let room_string = room_name.to_string();
     let base_url = base_url.clone();
     let ws = tokio::spawn(async move {
-        let handler = WsHandler::new(
+        let handler = WsHandler::connect(
             e_tx,
             a_rx,
             config.web,
