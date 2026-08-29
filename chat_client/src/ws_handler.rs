@@ -56,6 +56,7 @@ pub struct WsHandler {
     stream: WsConnection,
     tx: Sender<WsEvent>,
     rx: Receiver<WsAction>,
+    closed: bool,
 }
 
 impl WsHandler {
@@ -105,7 +106,7 @@ impl WsHandler {
         Ok(Self::new(config, stream, tx, rx))
     }
 
-    const fn new(
+    pub const fn new(
         config: WebConfig,
         stream: WsConnection,
         tx: Sender<WsEvent>,
@@ -116,6 +117,7 @@ impl WsHandler {
             stream,
             tx,
             rx,
+            closed: false,
         }
     }
 
@@ -131,7 +133,13 @@ impl WsHandler {
         }
     }
 
+    /// Processes all of the incoming and outgoing information,
+    /// returnes true if the stream is closed and should no longer be polled
     pub async fn step(&mut self) -> bool {
+        if self.closed {
+            return true;
+        }
+
         let mut should_quit = self.process_actions().await;
 
         tokio::select! {
@@ -150,6 +158,8 @@ impl WsHandler {
         let _ = self.tx.send(WsEvent::Quit).await;
         self.stream.close().await?;
         self.stream.flush().await?;
+
+        self.closed = true;
 
         Ok(())
     }
@@ -184,11 +194,12 @@ impl WsHandler {
     }
 
     async fn handle_stream(&mut self) -> anyhow::Result<bool> {
-        let msg = self
-            .stream
-            .next()
-            .await
-            .context("stream resolved to None")??;
+        let msg = self.stream.next().await;
+
+        let msg = match msg {
+            Some(msg) => msg?,
+            None => return Ok(false),
+        };
 
         match msg {
             tungstenite::Message::Text(txt) => {
@@ -247,7 +258,7 @@ impl WsHandler {
                     .await?;
             }
             WsAction::Quit => {
-                self.stream.flush().await?;
+                self.client_close().await?;
                 return Ok(true);
             }
             WsAction::ChangeName(name) => {
@@ -349,39 +360,88 @@ impl WsHandler {
 mod tests {
     use super::*;
 
-    use chat_lib::{ws_connection::Message, ws_mock::MockWebSocket};
+    use chat_lib::ws_connection::Message;
 
-    use crate::testing::{HandlerChannels, rx_collect_available};
+    use crate::testing::{ConfiguredHandler, handler_run, rx_collect_available};
 
     #[tokio::test]
     async fn handler_exits() -> anyhow::Result<()> {
-        let HandlerChannels {
-            e_tx,
+        let ConfiguredHandler {
+            mut handler,
             mut e_rx,
-            a_rx,
             in_tx,
-            in_rx,
-            out_tx,
             mut out_rx,
             ..
-        } = HandlerChannels::new();
-
-        let conn = WsConnection::Mock(Box::new(MockWebSocket::new_proxy(out_tx, in_rx)));
-        let mut ws = WsHandler::new(WebConfig::default(), conn, e_tx, a_rx);
+        } = ConfiguredHandler::new();
 
         in_tx.send(tungstenite::Message::Close(None)).await?;
 
-        for _ in 0..5 {
-            if !ws.step().await {
-                break;
-            }
-        }
+        handler_run(&mut handler, 5).await;
 
         let out_vec = rx_collect_available(&mut out_rx);
         let ev_vec = rx_collect_available(&mut e_rx);
 
         assert!(out_vec.contains(&Message::Close(None)));
         assert!(ev_vec.contains(&WsEvent::Quit));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn sends_message() -> anyhow::Result<()> {
+        let ConfiguredHandler {
+            mut handler,
+            a_tx,
+            mut out_rx,
+            ..
+        } = ConfiguredHandler::new();
+
+        let message_text = "Hello";
+
+        a_tx.send(WsAction::Message(message_text.to_string()))?;
+
+        handler_run(&mut handler, 3).await;
+
+        let out_vec = rx_collect_available(&mut out_rx);
+
+        assert!(out_vec.contains(&ClientMessage::SendMessage(message_text.to_string()).as_wsmsg()));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn quits() -> anyhow::Result<()> {
+        let ConfiguredHandler {
+            mut handler,
+            a_tx,
+            mut out_rx,
+            in_tx,
+            ..
+        } = ConfiguredHandler::new();
+
+        let run_steps = 3;
+
+        let n = handler_run(&mut handler, run_steps).await;
+
+        // the handler should run the full `run_steps` because it's not closed during those polls
+        assert_eq!(n, run_steps);
+
+        a_tx.send(WsAction::Quit)?;
+
+        let n = handler_run(&mut handler, 3).await;
+
+        assert_eq!(n, 1);
+
+        in_tx.send(Message::Close(None)).await?;
+
+        let n = handler_run(&mut handler, 3).await;
+
+        assert_eq!(n, 1);
+
+        let out_vec = rx_collect_available(&mut out_rx);
+
+        // check if the handler sent a closing frame back
+        assert!(out_vec.contains(&Message::Close(None)));
 
         Ok(())
     }
