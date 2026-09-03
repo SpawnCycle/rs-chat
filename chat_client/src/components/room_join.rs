@@ -74,6 +74,15 @@ impl RoomJoinModal<'_> {
         self.typing_url = !self.typing_url;
         self.apply_cursor_style();
     }
+
+    fn join_room(&self) -> super::EventResult {
+        let input = self.message_field.lines()[0].trim();
+
+        EventResult::batch([
+            AppAction::join_room(self.server_url.clone(), input),
+            AppAction::pop_component(),
+        ])
+    }
 }
 
 impl Component for RoomJoinModal<'_> {
@@ -87,11 +96,7 @@ impl Component for RoomJoinModal<'_> {
             | Input {
                 key: Key::Enter, ..
             } => {
-                let input = self.message_field.lines()[0].trim();
-                return EventResult::batch([
-                    AppAction::join_room(self.server_url.clone(), input),
-                    AppAction::pop_component(),
-                ]);
+                return self.join_room();
             }
             Input { key: Key::Tab, .. } => {
                 self.switch_inputs();

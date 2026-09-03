@@ -137,8 +137,8 @@ impl AppContext {
             &loc.room_name,
             self.config.web.defult_name.clone(),
         );
-        self.current_room_or(loc.clone().into());
-        self.rooms.insert(loc, room);
+        self.rooms.insert(loc.clone(), room);
+        self.try_set_current_room(loc);
     }
 
     fn current_room_or(&mut self, loc: Option<RoomLocation>) {
