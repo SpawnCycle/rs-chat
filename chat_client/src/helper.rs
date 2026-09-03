@@ -149,7 +149,7 @@ pub fn connect_room_ws(
         while !handler.step().await {}
 
         let _ = handler
-            .client_close()
+            .close()
             .await
             .inspect_err(|err| log::error!("Error while closing websocket: {err}"));
 

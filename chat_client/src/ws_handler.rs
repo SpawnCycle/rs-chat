@@ -153,6 +153,14 @@ impl WsHandler {
         should_quit
     }
 
+    pub async fn close(&mut self) -> anyhow::Result<()> {
+        if !self.closed {
+            self.client_close().await?;
+        }
+
+        Ok(())
+    }
+
     async fn send_close(&mut self) -> anyhow::Result<()> {
         log::info!("Closing Ws stream");
         let _ = self.tx.send(WsEvent::Quit).await;
@@ -164,33 +172,33 @@ impl WsHandler {
         Ok(())
     }
 
-    pub async fn client_close(&mut self) -> anyhow::Result<()> {
+    async fn client_close(&mut self) -> anyhow::Result<()> {
         self.send_close().await?;
 
         // a close is only valid if both of the parties sent a close frame,
-        self.await_close_frame().await?;
+        self.await_close_frame().await;
         log::info!("Received Close frame");
 
         Ok(())
     }
 
-    pub async fn server_close(&mut self) -> anyhow::Result<()> {
+    async fn server_close(&mut self) -> anyhow::Result<()> {
         self.send_close().await?;
 
         Ok(())
     }
 
-    async fn await_close_frame(&mut self) -> anyhow::Result<()> {
+    async fn await_close_frame(&mut self) {
         while let Some(msg) = self.stream.next().await {
-            let msg = msg?;
+            let Ok(msg) = msg else {
+                break;
+            };
             // we need to await a close frame (or an error),
             // so the close can be finalize properly
             if matches!(msg, tungstenite::Message::Close(_)) {
                 break;
             }
         }
-
-        Ok(())
     }
 
     async fn handle_stream(&mut self) -> anyhow::Result<bool> {
