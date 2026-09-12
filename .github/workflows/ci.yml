@@ -54,4 +54,4 @@ jobs:
       - name: Install cargo-all-features
         run: cargo install cargo-all-features
       - name: Test lib feature flags
-        run: cd chat_lib && cargo all-features check
+        run: cd chat-lib && cargo all-features check
