@@ -6,8 +6,8 @@ Chat is a websocket based chat. (Written in rust btw)
 
 There are 2 main parts in this repo:
 
-- Server (located in the `chat_server` directory)
-- Client (located in the `chat_client` directory)
+- Server (located in the `chat-server` directory)
+- Client (located in the `chat-client` directory)
 
 ## Server
 
@@ -24,7 +24,7 @@ The client is a tui application written using `ratatui` for terminal drawing and
 As of writing, the server doesn't support args or configs.
 
 ```sh
-cargo run --bin chat_server
+cargo run --bin chat-server
 ```
 
 ### Client
@@ -32,46 +32,46 @@ cargo run --bin chat_server
 Launch the tui and join the default room:
 
 ```sh
-cargo run --bin chat_client
+cargo run --bin chat-client
 ```
 
 > [!NOTE]
-> The wollowing code snippets will simplify the cargo run bit to just `chat_client`
+> The wollowing code snippets will simplify the cargo run bit to just `chat-client`
 
 Launch the tui and join the room called `not_default`:
 
 ```sh
-chat_client -r not_default
+chat-client -r not_default
 ```
 
 Delete the log file and then launch the tui:
 
 ```sh
-chat_client -c
+chat-client -c
 ```
 
 Check the server status:
 
 ```sh
-chat_client ls
+chat-client ls
 ```
 
 Check the server status and display the users currently in the default room:
 
 ```sh
-chat_client ls -u
+chat-client ls -u
 ```
 
 Or
 
 ```sh
-chat_client ls --users
+chat-client ls --users
 ```
 
 Check the server and display the users in the room called `something`:
 
 ```sh
-chat_client ls -ur something
+chat-client ls -ur something
 ```
 
 ## Prerequisites
