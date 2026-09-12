@@ -29,7 +29,7 @@ semver = { version = "1.0.28", features = ["serde"] }
 serde = { version = "1.0.229", features = ["derive"] }
 strum = { version = "0.28.0", features = ["derive"] }
 tokio = { version = "1.53.1", features = ["full"] }
-uuid = { version = "1.25.0", features = ["v4", "serde"] }
+uuid = { version = "1.26.1", features = ["v4", "serde"] }
 
 anyhow = "1.0.104"
 futures = "0.3.34"
