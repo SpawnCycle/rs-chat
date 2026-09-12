@@ -42,6 +42,6 @@ mod tests {
     #[allow(clippy::const_is_empty)]
     #[test]
     fn tui_help_text_exists() {
-        assert!(!TUI_HELP_TEXT.is_empty());
+        assert_ne!(TUI_HELP_TEXT, "");
     }
 }

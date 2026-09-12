@@ -1,5 +1,5 @@
 [package]
-name = "chat_server"
+name = "chat-server"
 version.workspace = true
 edition = "2024"
 authors = ["Krickij Lászlo <krickijlaszlo@gmail.com>"]
@@ -13,7 +13,7 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-chat_lib = { path = "../chat_lib", features = ["ws_conn", "server", "ws_msg"] }
+chat-lib = { path = "../chat-lib", features = ["ws_conn", "server", "ws_msg"] }
 
 anyhow = { workspace = true }
 axum = { workspace = true }

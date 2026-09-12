@@ -1,5 +1,5 @@
 [workspace]
-members = ["chat_client", "chat_lib", "chat_server"]
+members = ["chat-client", "chat-lib", "chat-server"]
 resolver = "3"
 
 [workspace.package]
@@ -36,7 +36,6 @@ futures = "0.3.34"
 log = "0.4.34"
 thiserror = "2.0.20"
 tokio-tungstenite = "0.30.0"
-tungstenite = "0.30.0"
 
 [profile.release]
 opt-level = 3

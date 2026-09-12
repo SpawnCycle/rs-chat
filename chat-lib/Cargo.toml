@@ -1,5 +1,5 @@
 [package]
-name = "chat_lib"
+name = "chat-lib"
 version.workspace = true
 edition = "2024"
 authors = ["Krickij Lászlo <krickijlaszlo@gmail.com>"]
