@@ -44,7 +44,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Run tests
-        run: cargo test --workspace --verbose
+        run: cargo test --workspace --verbose --all-features --all-targets
   lib-features:
     runs-on: ubuntu-latest
     steps:
