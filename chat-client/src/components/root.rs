@@ -180,6 +180,9 @@ impl Root<'_> {
                 ctrl: true,
                 alt: false,
                 ..
+            }
+            | Input {
+                key: Key::PageUp, ..
             } => {
                 ctx.scroll_up();
             }
@@ -188,6 +191,9 @@ impl Root<'_> {
                 ctrl: true,
                 alt: false,
                 ..
+            }
+            | Input {
+                key: Key::PageDown, ..
             } => {
                 ctx.scroll_down();
             }
