@@ -30,7 +30,7 @@ pub fn init() -> (AppConfig, Option<ActionType>) {
 
 fn read_config() -> Option<AppConfig> {
     let mut config_path = config_dir()?;
-    config_path.push("rs_chat/client.toml");
+    config_path.push("rs-chat/client.toml");
 
     fs::read_to_string(config_path)
         .map(|s| {

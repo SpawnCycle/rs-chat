@@ -13,10 +13,10 @@ use log4rs::{
 pub fn setup() -> anyhow::Result<log4rs::Handle> {
     let log_file = {
         if cfg!(debug_assertions) {
-            PathBuf::from("log/rs_chat_server.log")
+            PathBuf::from("log/rs-chat-server.log")
         } else {
-            data_dir().map_or(PathBuf::from("~/.rs_chat/server.log"), |mut dir| {
-                dir.push("rs_chat/server.log");
+            data_dir().map_or(PathBuf::from("~/.rs-chat/server.log"), |mut dir| {
+                dir.push("rs-chat/server.log");
                 dir
             })
         }

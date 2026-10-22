@@ -15,10 +15,10 @@ pub const fn log_level() -> LevelFilter {
 
 pub(crate) fn log_path() -> PathBuf {
     if cfg!(debug_assertions) {
-        PathBuf::from("log/rs_chat_client.log")
+        PathBuf::from("log/rs-chat-client.log")
     } else {
-        data_dir().map_or(PathBuf::from("~/.rs_chat/client.log"), |mut dir| {
-            dir.push("rs_chat/client.log");
+        data_dir().map_or(PathBuf::from("~/.rs-chat/client.log"), |mut dir| {
+            dir.push("rs-chat/client.log");
             dir
         })
     }
