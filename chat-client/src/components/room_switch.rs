@@ -113,17 +113,16 @@ impl RoomSwitchModal<'_> {
     fn toggle_search_type(&mut self, ctx: &mut AppContext) {
         if let Some(matched) = self.matched_rows.first()
             && self.matched_rows.len() == 1
+            && !self.searching_rooms
         {
-            if !self.searching_rooms {
-                let server = ServerUrl::from_str(matched);
-                if let Ok(ServerUrl(url)) = server
-                    && ctx.has_server(&url)
-                {
-                    self.search_url = url;
-                }
-                self.server_field.clear();
-                self.server_field.insert_str(&self.search_url);
+            let server = ServerUrl::from_str(matched);
+            if let Ok(ServerUrl(url)) = server
+                && ctx.has_server(&url)
+            {
+                self.search_url = url;
             }
+            self.server_field.clear();
+            self.server_field.insert_str(&self.search_url);
         }
 
         self.searching_rooms = !self.searching_rooms;
